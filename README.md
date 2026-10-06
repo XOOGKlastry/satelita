@@ -21,4 +21,3 @@ Biblioteki Leaflet, Leaflet Draw, JSZip, html2canvas i wayback-core są pobieran
 Repozytorium `satelita` konta `XOOGKlastry` jest publiczne, więc opublikowany tam kod będzie widoczny dla wszystkich. Zwykłe GitHub Pages również są publiczne, nawet gdy repo jest prywatne. Ograniczony dostęp do Pages jest dostępny dla stron projektowych z prywatnych repozytoriów organizacji, przy odpowiednim planie i konfiguracji.
 
 Workflow `.github/workflows/pages.yml` publikuje stronę na GitHub Pages przy zmianach w `main`. Włącz GitHub Pages w ustawieniach repozytorium, wybierając jako źródło `GitHub Actions`.
-
