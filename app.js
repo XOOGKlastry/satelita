@@ -137,10 +137,14 @@ function setVisibleSelected(checked) {
   syncSelection();
 }
 
-async function showRelease(item, row) {
+function geoportalViewportLayer(year){
+  const view=map.getBounds();const size=map.getSize();const corners=[view.getSouthWest(),view.getNorthWest(),view.getSouthEast(),view.getNorthEast()].map(p=>proj4('WGS84',projection2180,[p.lng,p.lat]));const xs=corners.map(p=>p[0]),ys=corners.map(p=>p[1]);const maxDimension=1800,scale=Math.min(1,maxDimension/size.x,maxDimension/size.y);const params=new URLSearchParams({SERVICE:'WMS',REQUEST:'GetMap',VERSION:'1.1.1',LAYERS:'Raster',STYLES:'',FORMAT:'image/png',TRANSPARENT:'FALSE',SRS:'EPSG:2180',BBOX:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].join(','),WIDTH:String(Math.max(1,Math.round(size.x*scale))),HEIGHT:String(Math.max(1,Math.round(size.y*scale))),TIME:String(year)+'-01-01'});return L.imageOverlay(geoportalWms+'?'+params.toString(),view,{crossOrigin:true,opacity:1,interactive:false,alt:'Geoportal WMS '+year});
+}
+
+async function showRelease(item, row, singleImage = false) {
   if (currentLayer) map.removeLayer(currentLayer);
   currentLayer = item.provider === 'geoportal'
-    ? L.tileLayer.wms(geoportalWms, { layers: 'Raster', format: 'image/png', transparent: false, version: '1.1.1', time: `${item.releaseDateLabel}-01-01`, crossOrigin: true, attribution: 'GUGiK / Geoportal.gov.pl' }).addTo(map)
+    ? (singleImage ? geoportalViewportLayer(item.releaseDateLabel).addTo(map) : L.tileLayer.wms(geoportalWms, { layers: 'Raster', format: 'image/png', transparent: false, version: '1.1.1', time: `${item.releaseDateLabel}-01-01`, crossOrigin: true, attribution: 'GUGiK / Geoportal.gov.pl' }).addTo(map))
     : L.tileLayer(leafletUrl(item), { maxZoom: 19, crossOrigin: true, attribution: 'Esri, Maxar, Earthstar Geographics' }).addTo(map);
   $('imagery-list').querySelectorAll('.imagery-item').forEach(el => el.classList.toggle('active', el === row));
   row?.scrollIntoView({ block: 'nearest' });
@@ -158,16 +162,20 @@ async function showRelease(item, row) {
 // Capture the visible map viewport after the selected imagery layer has loaded.
 async function exportRelease(item, zip) {
   const row = $('imagery-list').querySelector(`[data-id="${item.releaseNum}"]`);
-  await showRelease(item, row);
+  await showRelease(item, row, item.provider === 'geoportal');
   $('snapshot-label').textContent = `${item.provider === 'geoportal' ? 'GEOPORTAL' : 'ESRI'} · ${item.exportLabel.replace('_','/')}`;
   $('snapshot-label').hidden = false;
   try {
     const layer = currentLayer;
     await new Promise(resolve => {
       let finished = false;
-      const done = () => { if (finished) return; finished = true; clearTimeout(timer); layer.off('load', done); resolve(); };
-      const timer = setTimeout(done, 15000);
-      layer.on('load', done);
+      const done = (error) => { if (finished) return; finished = true; clearTimeout(timer); layer.off('load', onLoad); layer.off('error', onError); error ? reject(error) : resolve(); };
+      const onLoad = () => done();
+      const onError = () => done(new Error(item.provider === 'geoportal' ? 'Geoportal nie zwrócił obrazu dla tego roku.' : 'Nie udało się wczytać warstwy archiwalnej.'));
+      const timeout = item.provider === 'geoportal' ? 12000 : 15000;
+      const timer = setTimeout(() => done(new Error('Przekroczono czas oczekiwania na obraz Geoportalu.')), timeout);
+      layer.on('load', onLoad); layer.on('error', onError);
+      if (layer._image?.complete && layer._image.naturalWidth) done();
       if (layer._loading === false && layer._tileZoom !== undefined) done();
     });
     const canvas = await html2canvas($('map'), { useCORS: true, allowTaint: false, backgroundColor: '#dce3dc', scale: 1, logging: false });
@@ -183,12 +191,14 @@ $('download').addEventListener('click', async () => {
   const button = $('download'); button.disabled = true; button.querySelector('span').textContent = 'TWORZĘ PACZKĘ…';
   setStatus(`Eksportuję 0 z ${chosen.length} zdjęć. Pozostaw tę kartę otwartą.`, 'loading');
   try {
-    const zip = new JSZip(); zip.file('obszar.txt', `Zaznaczenie: ${boundsText(bounds)}\nEksport: zrzuty widocznego okna mapy, zbliżenie ${map.getZoom()}\nPliki są podpisane dostawcą i datą.\n`);
+    const zip = new JSZip(); zip.file('obszar.txt', `Zaznaczenie: ${boundsText(bounds)}\nEksport: zrzuty widocznego okna mapy, zbliżenie ${map.getZoom()}\nGeoportal pobrany jako pojedynczy obraz widoku na każdy rok.\nPliki są podpisane dostawcą i datą.\n`);
     for (let i=0; i<chosen.length; i++) {
       await exportRelease(chosen[i], zip);
       setStatus(`Eksportuję ${i+1} z ${chosen.length} zdjęć…`, 'loading');
     }
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const lastGeoportal = [...chosen].reverse().find(item => item.provider === 'geoportal');
+    if (lastGeoportal) await showRelease(lastGeoportal, $('imagery-list').querySelector(`[data-id="${lastGeoportal.releaseNum}"]`));
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `warstwy-czasu_${new Date().toISOString().slice(0,10)}.zip`; a.click(); URL.revokeObjectURL(a.href);
     setStatus(`Gotowe. Paczka zawiera ${chosen.length} zdjęć i pliki z informacją o źródle.`, '');
   } catch (error) { console.error(error); setStatus(`Eksport nie powiódł się: ${error.message}`, 'error'); }
@@ -236,4 +246,5 @@ $('deselect-visible').addEventListener('click', () => setVisibleSelected(false))
 map.on('locationfound', e => L.circleMarker(e.latlng, { radius: 7, color: '#31583c', fillOpacity: .7 }).addTo(map));
 map.on('locationerror', () => setStatus('Przeglądarka nie udostępniła lokalizacji. Możesz przesunąć mapę ręcznie.', 'error'));
 updateSelectionCard();
+
 
