@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101713">
+  <title>Warstwy czasu — archiwum zdjęć lotniczych i satelitarnych</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://wayback.maptiles.arcgis.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Warstwy czasu — strona główna"><span class="brand-mark">◉</span><span>WARSTWY<span class="brand-light">CZASU</span></span></a>
+      <div class="top-note"><span class="live-dot"></span> ARCHIWUM ZDJĘĆ LOTNICZYCH I SATELITARNYCH</div>
+    <a class="source-link" href="https://www.geoportal.gov.pl/pl/usluga/uslugi-przegladania-wms-i-wmts/" target="_blank" rel="noreferrer">O źródłach ↗</a>
+  </header>
+
+  <main class="layout">
+    <section class="map-wrap" aria-label="Mapa">
+      <div id="map">
+        <div id="snapshot-label" class="snapshot-label" hidden></div>
+        <div id="map-attribution" class="map-attribution">© Esri, Maxar, Earthstar Geographics</div>
+      </div>
+      <div class="map-hint"><span class="hint-icon">▧</span> Narysuj prostokąt, żeby wybrać obszar</div>
+      <button id="locate" class="locate" title="Pokaż moją lokalizację" aria-label="Pokaż moją lokalizację">◎</button>
+    </section>
+
+    <aside class="panel">
+      <div class="eyebrow">PRZEGLĄDARKA ZDJĘĆ HISTORYCZNYCH <span class="eyebrow-line"></span></div>
+      <h1>Zobacz, jak<br>zmieniało się <i>miejsce.</i></h1>
+      <p class="intro">Zaznacz obszar i przeglądaj dostępne archiwa ortofotomap i zdjęć satelitarnych.</p>
+
+      <div class="step-title"><span class="step-number">01</span><span>WYBRANY OBSZAR</span></div>
+      <div id="selection-card" class="selection-card empty">
+        <span class="selection-icon">⌖</span>
+        <div><strong id="selection-title">Jeszcze nic tu nie ma</strong><span id="selection-subtitle">Użyj narzędzia prostokąta na mapie</span></div>
+        <button id="clear-selection" class="clear-button" title="Wyczyść zaznaczenie" hidden>×</button>
+      </div>
+
+      <div class="source-picker">
+        <label for="source-select">ŹRÓDŁO ZDJĘĆ</label>
+        <select id="source-select">
+          <option value="esri">Esri Wayback · archiwum</option>
+          <option value="geoportal">Geoportal · ortofotomapy archiwalne</option>
+          <option value="google">Google Satellite · bieżące</option>
+        </select>
+        <button id="google-key-button" class="key-button" type="button">＋ USTAW KLUCZ GOOGLE</button>
+      </div>
+
+      <div class="step-title second-step"><span class="step-number">02</span><span>DOSTĘPNE UJĘCIA</span><span id="count" class="count">—</span></div>
+      <div id="status" class="status"><span class="status-mark">✳</span><span>Zaznacz obszar na mapie, aby sprawdzić archiwum.</span></div>
+      <div id="imagery-list" class="imagery-list" aria-live="polite"></div>
+
+      <div class="panel-footer">
+        <div class="zip-summary"><span class="zip-icon">⇩</span><span id="zip-label">Pliki będą podpisane datą ujęcia</span></div>
+        <button id="download" class="download" disabled><span>POBIERZ PACZKĘ ZIP</span><span class="download-arrow">↓</span></button>
+        <p class="license-note">Eksport Esri i Geoportalu. Google Satellite jest tylko do podglądu zgodnie z warunkami API.</p>
+      </div>
+    </aside>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
+
