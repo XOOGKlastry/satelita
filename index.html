@@ -24,7 +24,20 @@
         <div id="snapshot-label" class="snapshot-label" hidden></div>
         <div id="map-attribution" class="map-attribution">© Esri, Maxar, Earthstar Geographics</div>
       </div>
-      <div class="map-hint"><span class="hint-icon">▧</span> Narysuj prostokąt, żeby wybrać obszar</div>
+      <div class="map-search" id="map-search">
+        <form id="address-search-form" class="map-search-form address-search-form" autocomplete="off">
+          <label for="address-query">SZUKAJ ADRESU</label>
+          <div class="map-search-row"><span class="search-symbol">⌕</span><input id="address-query" type="search" placeholder="Miejscowość, ulica, numer" aria-label="Adres" autocomplete="off"><button type="submit">SZUKAJ</button></div>
+          <div id="address-suggestions" class="address-suggestions" role="listbox" hidden></div>
+          <span id="address-status" class="map-search-status" aria-live="polite"></span>
+        </form>
+        <form id="parcel-search-form" class="map-search-form parcel-search-form" autocomplete="off">
+          <label for="parcel-query">SZUKAJ DZIAŁKI PO IDENTYFIKATORZE</label>
+          <div class="map-search-row"><span class="search-symbol">⌖</span><input id="parcel-query" type="search" placeholder="np. 141201_1.0001.6509" aria-label="Identyfikator działki"><button type="submit">SZUKAJ</button></div>
+          <span id="parcel-status" class="map-search-status" aria-live="polite"></span>
+        </form>
+      </div>
+      <button id="draw-area" class="draw-area" type="button"><span>▧</span> RYSUJ OBSZAR</button>
       <button id="locate" class="locate" title="Pokaż moją lokalizację" aria-label="Pokaż moją lokalizację">◎</button>
     </section>
 
@@ -39,16 +52,6 @@
         <div><strong id="selection-title">Jeszcze nic tu nie ma</strong><span id="selection-subtitle">Użyj narzędzia prostokąta na mapie</span></div>
         <button id="clear-selection" class="clear-button" title="Wyczyść zaznaczenie" hidden>×</button>
       </div>
-
-      <form id="location-search" class="location-search">
-        <label for="location-query">SZUKAJ ADRESU LUB DZIAŁKI</label>
-        <div class="search-row">
-          <select id="location-kind" aria-label="Typ wyszukiwania"><option value="address">Adres</option><option value="parcel">Działka</option></select>
-          <input id="location-query" type="search" placeholder="Miasto, ulica i numer" aria-label="Adres lub identyfikator działki" required>
-          <button type="submit" aria-label="Szukaj">⌕</button>
-        </div>
-        <span id="location-status" class="location-status" aria-live="polite"></span>
-      </form>
 
       <div class="source-picker">
         <label for="source-select">ŹRÓDŁO ZDJĘĆ</label>
