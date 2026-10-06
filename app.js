@@ -229,4 +229,3 @@ $('locate').addEventListener('click', () => map.locate({ setView: true, maxZoom:
 map.on('locationfound', e => L.circleMarker(e.latlng, { radius: 7, color: '#31583c', fillOpacity: .7 }).addTo(map));
 map.on('locationerror', () => setStatus('Przeglądarka nie udostępniła lokalizacji. Możesz przesunąć mapę ręcznie.', 'error'));
 updateSelectionCard();
-
