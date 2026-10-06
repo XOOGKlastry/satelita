@@ -48,10 +48,29 @@
           <option value="google">Google Satellite · bieżące</option>
         </select>
         <button id="google-key-button" class="key-button" type="button">＋ USTAW KLUCZ GOOGLE</button>
+        <details class="key-help">
+          <summary>Gdzie znaleźć klucz? Instrukcja krok po kroku</summary>
+          <ol>
+            <li>W <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noreferrer">Google Cloud Console</a> utwórz projekt lub wybierz istniejący i włącz rozliczenia.</li>
+            <li>Otwórz <a href="https://console.cloud.google.com/marketplace/product/google/tile.googleapis.com" target="_blank" rel="noreferrer">Map Tiles API</a> i kliknij <b>Włącz</b>.</li>
+            <li>Wejdź do <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noreferrer">Google Maps Platform → Credentials</a> i wybierz <b>Utwórz dane logowania → Klucz API</b>.</li>
+            <li>Ogranicz klucz: <b>Ograniczenia aplikacji → Witryny</b>, dodaj <code>https://xoogklastry.github.io/*</code>. W <b>Ograniczenia API</b> wybierz tylko <b>Map Tiles API</b> (<code>tile.googleapis.com</code>).</li>
+            <li>Skopiuj klucz, kliknij przycisk powyżej i wklej go. Klucz zapisuje się tylko w tej przeglądarce.</li>
+          </ol>
+          <p>Do testów lokalnych dodaj też <code>http://localhost:8000/*</code>. Ustaw limit zapytań i sprawdź koszty w Google Cloud — API wymaga aktywnego rozliczania.</p>
+        </details>
       </div>
 
       <div class="step-title second-step"><span class="step-number">02</span><span>DOSTĘPNE UJĘCIA</span><span id="count" class="count">—</span></div>
       <div id="status" class="status"><span class="status-mark">✳</span><span>Zaznacz obszar na mapie, aby sprawdzić archiwum.</span></div>
+      <div class="list-tools">
+        <input id="search-releases" type="search" placeholder="Szukaj roku lub daty…" aria-label="Szukaj ujęć po dacie">
+        <div class="selection-tools">
+          <button id="select-visible" type="button">ZAZNACZ WIDOCZNE</button>
+          <button id="deselect-visible" type="button">ODZNACZ WIDOCZNE</button>
+        </div>
+        <span id="search-count" class="search-count"></span>
+      </div>
       <div id="imagery-list" class="imagery-list" aria-live="polite"></div>
 
       <div class="panel-footer">
