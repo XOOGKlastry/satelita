@@ -167,13 +167,13 @@ async function exportRelease(item, zip) {
   $('snapshot-label').hidden = false;
   try {
     const layer = currentLayer;
-    await new Promise(resolve => {
+    await new Promise((resolve, reject) => {
       let finished = false;
       const done = (error) => { if (finished) return; finished = true; clearTimeout(timer); layer.off('load', onLoad); layer.off('error', onError); error ? reject(error) : resolve(); };
       const onLoad = () => done();
       const onError = () => done(new Error(item.provider === 'geoportal' ? 'Geoportal nie zwrócił obrazu dla tego roku.' : 'Nie udało się wczytać warstwy archiwalnej.'));
       const timeout = item.provider === 'geoportal' ? 12000 : 15000;
-      const timer = setTimeout(() => done(new Error('Przekroczono czas oczekiwania na obraz Geoportalu.')), timeout);
+      const timer = setTimeout(() => done(new Error(item.provider === 'geoportal' ? 'Przekroczono czas oczekiwania na obraz Geoportalu.' : 'Przekroczono czas oczekiwania na warstwę archiwalną.')), timeout);
       layer.on('load', onLoad); layer.on('error', onError);
       if (layer._image?.complete && layer._image.naturalWidth) done();
       if (layer._loading === false && layer._tileZoom !== undefined) done();
