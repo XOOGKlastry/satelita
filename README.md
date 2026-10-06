@@ -2,6 +2,8 @@
 
 Statyczna aplikacja Leaflet. Zaznacz prostokąt, wybierz źródło i pobierz widok mapy dla dostępnych wydań i lat do ZIP. Każdy zrzut zawiera widoczny zasięg mapy, warstwę, datę oraz oznaczenie źródła.
 
+Listę pozycji można przeszukiwać po roku/dacie; przyciski zaznaczają lub odznaczają wszystkie aktualnie widoczne wyniki.
+
 ## Źródła
 
 - **Esri Wayback:** archiwalne wydania. Aplikacja wyszukuje wydania ze zmianami w pobliżu zaznaczenia i sprawdza datę pozyskania zdjęcia w punkcie centralnym. Pliki mają nazwy `esri_MM_RRRR.png`.
@@ -9,6 +11,14 @@ Statyczna aplikacja Leaflet. Zaznacz prostokąt, wybierz źródło i pobierz wid
 - **Google Satellite:** bieżąca warstwa wyłącznie do podglądu. Google Maps Tile API wymaga własnego klucza, włączonego API i rozliczeń. Google nie udostępnia przez to API archiwum historycznych zdjęć Google Earth. Kafelki Google nie są zapisywane do ZIP: zasady API ograniczają przechowywanie, pobieranie i użycie offline.
 
 Klucz Google wpisany przyciskiem w interfejsie jest przechowywany lokalnie w `localStorage` przeglądarki i nie trafia do repozytorium. To klucz przeglądarkowy, a nie poufny sekret: ogranicz go w Google Cloud do Maps Tile API i domeny aplikacji. Użytkownicy Google muszą mieć własny klucz albo korzystać z przeglądarki, w której klucz jest zapisany.
+
+### Utworzenie klucza Google
+
+1. W [Google Cloud Console](https://console.cloud.google.com/projectcreate) utwórz projekt albo wybierz istniejący. W projekcie musi być włączone rozliczanie.
+2. Otwórz [Map Tiles API](https://console.cloud.google.com/marketplace/product/google/tile.googleapis.com) i kliknij **Włącz**.
+3. W [Google Maps Platform → Credentials](https://console.cloud.google.com/google/maps-apis/credentials) wybierz **Utwórz dane logowania → Klucz API**.
+4. W ograniczeniach klucza ustaw aplikację jako **Witryny**, dodaj `https://xoogklastry.github.io/*`, a w ograniczeniach API wybierz tylko **Map Tiles API** (`tile.googleapis.com`). Do lokalnych testów dodaj `http://localhost:8000/*`.
+5. Skopiuj klucz i wklej go przez przycisk **Ustaw klucz Google** w aplikacji. Ustaw dzienny limit zapytań i kontroluj koszty w Cloud Console.
 
 ## Zrzuty i uruchomienie
 
