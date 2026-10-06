@@ -32,7 +32,6 @@
       <div class="eyebrow">PRZEGLĄDARKA ZDJĘĆ HISTORYCZNYCH <span class="eyebrow-line"></span></div>
       <h1>Zobacz, jak<br>zmieniało się <i>miejsce.</i></h1>
       <p class="intro">Zaznacz obszar i przeglądaj dostępne archiwa ortofotomap i zdjęć satelitarnych.</p>
-      <p class="history-note">Google Earth Pro ma własną oś czasu zdjęć historycznych, ale Google wycofał Earth API — nie da się jej osadzić w tej mapie Leaflet. <a href="https://support.google.com/earth/answer/148094?hl=pl" target="_blank" rel="noreferrer">Otwórz instrukcję osi czasu ↗</a></p>
 
       <div class="step-title"><span class="step-number">01</span><span>WYBRANY OBSZAR</span></div>
       <div id="selection-card" class="selection-card empty">
@@ -40,6 +39,16 @@
         <div><strong id="selection-title">Jeszcze nic tu nie ma</strong><span id="selection-subtitle">Użyj narzędzia prostokąta na mapie</span></div>
         <button id="clear-selection" class="clear-button" title="Wyczyść zaznaczenie" hidden>×</button>
       </div>
+
+      <form id="location-search" class="location-search">
+        <label for="location-query">SZUKAJ ADRESU LUB DZIAŁKI</label>
+        <div class="search-row">
+          <select id="location-kind" aria-label="Typ wyszukiwania"><option value="address">Adres</option><option value="parcel">Działka</option></select>
+          <input id="location-query" type="search" placeholder="Miasto, ulica i numer" aria-label="Adres lub identyfikator działki" required>
+          <button type="submit" aria-label="Szukaj">⌕</button>
+        </div>
+        <span id="location-status" class="location-status" aria-live="polite"></span>
+      </form>
 
       <div class="source-picker">
         <label for="source-select">ŹRÓDŁO ZDJĘĆ</label>
@@ -71,6 +80,7 @@
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/proj4@2.11.0/dist/proj4.js"></script>
   <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
