@@ -18,6 +18,7 @@ let bounds = null;
 let releases = [];
 let selected = new Set();
 let currentLayer = null;
+let searchLayer = null;
 let requestId = 0;
 let imagerySource = 'esri';
 const geoportalWms = 'https://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMS/StandardResolutionTime';
@@ -204,6 +205,29 @@ $('source-select').addEventListener('change', async (event) => {
   $('map-attribution').textContent = imagerySource === 'geoportal' ? 'GUGiK / Geoportal.gov.pl' : '© Esri, Maxar, Earthstar Geographics';
   if (bounds) await findReleases();
 });
+
+
+const uugEndpoint = 'https://services.gugik.gov.pl/uug/';
+const uldkEndpoint = 'https://uldk.gugik.gov.pl/';
+const projection2180 = '+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +units=m +no_defs';
+function setLocationStatus(message, error = false) { $('location-status').textContent = message; $('location-status').classList.toggle('error', error); }
+function project2180ToWgs84(x, y) { const point=proj4(projection2180,'WGS84',[Number(x),Number(y)]); return [point[1],point[0]]; }
+function parseWktGeometry(wkt) {
+  const type=wkt.match(/^\s*(MULTIPOLYGON|POLYGON)\s*\(/i)?.[1]?.toUpperCase(); if(!type) throw new Error('Usługa nie zwróciła geometrii działki.');
+  const source=wkt.slice(wkt.indexOf('(')); let i=0;
+  function parseGroup(){const result=[];i++;while(i<source.length){while(/[\s,]/.test(source[i]||''))i++;if(source[i]===')'){i++;return result;}if(source[i]==='(')result.push(parseGroup());else{const m=source.slice(i).match(/^[-+\d.eE]+\s+[-+\d.eE]+/);if(!m)throw new Error('Nie można odczytać geometrii działki.');result.push(m[0].trim().split(/\s+/).map(Number));i+=m[0].length;}}return result;}
+  return {type:type==='POLYGON'?'Polygon':'MultiPolygon',coordinates:parseGroup()};
+}
+function extractWktRecord(line){const match=line.match(/(?:MULTIPOLYGON|POLYGON)\s*\(.*/i);if(!match)return null;const parts=line.split('|');const wkt=parts.find(p=>/(?:MULTIPOLYGON|POLYGON)\s*\(/i.test(p))||match[0];return{wkt,label:parts.filter(p=>p!==wkt).join(' · ')};}
+function showSearchResult(layer,boundsToFit,label){if(searchLayer)map.removeLayer(searchLayer);searchLayer=layer.addTo(map);map.fitBounds(boundsToFit,{padding:[30,30],maxZoom:18});if(label)layer.bindPopup(escapeHtml(label)).openPopup();}
+$('location-search').addEventListener('submit',async(event)=>{
+ event.preventDefault();const query=$('location-query').value.trim();if(!query)return;const button=$('location-search button[type="submit"]');button.disabled=true;setLocationStatus('Szukam…');
+ try{if($('location-kind').value==='address'){
+  const url=new URL(uugEndpoint);url.searchParams.set('request','GetAddress');url.searchParams.set('address',query);const response=await fetch(url);if(!response.ok)throw new Error('Usługa adresowa jest chwilowo niedostępna.');const data=await response.json();const results=data.results;const rows=Array.isArray(results)?results:Object.values(results||{});const item=rows.find(v=>v&&Number.isFinite(Number(v.x))&&Number.isFinite(Number(v.y)));if(!item)throw new Error('Nie znaleziono adresu. Spróbuj podać miejscowość, ulicę i numer.');const latlng=project2180ToWgs84(item.x,item.y);const marker=L.marker(latlng);showSearchResult(marker,L.latLngBounds([latlng,latlng]).pad(0.012),[item.city,item.street,item.number].filter(Boolean).join(', ')||query);setLocationStatus('Znaleziono adres. Narysuj prostokąt na obszarze, który chcesz porównać.');
+ }else{const url=new URL(uldkEndpoint);url.searchParams.set('request','GetParcelByIdOrNr');url.searchParams.set('id',query);url.searchParams.set('result','geom_wkt,id,parcel,region,commune,county,voivodeship');url.searchParams.set('srid','4326');const response=await fetch(url);if(!response.ok)throw new Error('Usługa działek jest chwilowo niedostępna.');const lines=(await response.text()).trim().split(/\r?\n/);const records=lines.slice(1).map(extractWktRecord).filter(Boolean);if(!records.length)throw new Error('Nie znaleziono działki. Wpisz pełny identyfikator albo nazwę obrębu i numer.');const features=records.map(record=>({type:'Feature',properties:{label:record.label},geometry:parseWktGeometry(record.wkt)}));const layer=L.geoJSON({type:'FeatureCollection',features},{style:{color:'#f2a900',weight:3,fillColor:'#ffd75e',fillOpacity:.24}});const boundsToFit=layer.getBounds();if(!boundsToFit.isValid())throw new Error('Nie udało się odczytać położenia działki.');showSearchResult(layer,boundsToFit,records.length>1?'Znaleziono '+records.length+' działek — podobne obręby mogą występować w różnych powiatach.':records[0].label||query);setLocationStatus(records.length>1?'Znaleziono '+records.length+' pasujących działek. Przybliż mapę i wybierz właściwy wynik.':'Znaleziono działkę. Narysuj prostokąt na obszarze, który chcesz porównać.');}
+ }catch(error){console.error(error);setLocationStatus(error.message||'Wyszukiwanie nie powiodło się.',true);}finally{button.disabled=false;}
+});
+$('location-kind').addEventListener('change',()=>{$('location-query').placeholder=$('location-kind').value==='parcel'?'Identyfikator lub obręb i numer':'Miasto, ulica i numer';});
 
 $('locate').addEventListener('click', () => map.locate({ setView: true, maxZoom: 15 }));
 $('search-releases').addEventListener('input', filterRows);
