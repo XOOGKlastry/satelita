@@ -1,91 +1,40 @@
 <!doctype html>
 <html lang="pl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101713">
-  <title>Warstwy czasu — archiwum zdjęć lotniczych i satelitarnych</title>
-  <link rel="preconnect" href="https://unpkg.com">
-  <link rel="preconnect" href="https://wayback.maptiles.arcgis.com">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
-  <link rel="stylesheet" href="./style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#f4f6f8">
+<title>Warstwy czasu — przeglądarka zdjęć</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="Warstwy czasu — strona główna"><span class="brand-mark">◉</span><span>WARSTWY<span class="brand-light">CZASU</span></span></a>
-      <div class="top-note"><span class="live-dot"></span> ARCHIWUM ZDJĘĆ LOTNICZYCH I SATELITARNYCH</div>
-    <a class="source-link" href="https://www.geoportal.gov.pl/pl/usluga/uslugi-przegladania-wms-i-wmts/" target="_blank" rel="noreferrer">O źródłach ↗</a>
-  </header>
-
-  <main class="layout">
-    <section class="map-wrap" aria-label="Mapa">
-      <div id="map">
-        <div id="snapshot-label" class="snapshot-label" hidden></div>
-        <div id="map-attribution" class="map-attribution">© Esri, Maxar, Earthstar Geographics</div>
-      </div>
-      <div class="map-search" id="map-search">
-        <form id="address-search-form" class="map-search-form address-search-form" autocomplete="off">
-          <label for="address-query">SZUKAJ ADRESU</label>
-          <div class="map-search-row"><span class="search-symbol">⌕</span><input id="address-query" type="search" placeholder="Miejscowość, ulica, numer" aria-label="Adres" autocomplete="off"><button type="submit">SZUKAJ</button></div>
-          <div id="address-suggestions" class="address-suggestions" role="listbox" hidden></div>
-          <span id="address-status" class="map-search-status" aria-live="polite"></span>
-        </form>
-        <form id="parcel-search-form" class="map-search-form parcel-search-form" autocomplete="off">
-          <label for="parcel-query">SZUKAJ DZIAŁKI PO IDENTYFIKATORZE</label>
-          <div class="map-search-row"><span class="search-symbol">⌖</span><input id="parcel-query" type="search" placeholder="np. 141201_1.0001.6509" aria-label="Identyfikator działki"><button type="submit">SZUKAJ</button></div>
-          <span id="parcel-status" class="map-search-status" aria-live="polite"></span>
-        </form>
-      </div>
-      <button id="draw-area" class="draw-area" type="button"><span>▧</span> RYSUJ OBSZAR</button>
-      <button id="locate" class="locate" title="Pokaż moją lokalizację" aria-label="Pokaż moją lokalizację">◎</button>
-    </section>
-
-    <aside class="panel">
-      <div class="eyebrow">PRZEGLĄDARKA ZDJĘĆ HISTORYCZNYCH <span class="eyebrow-line"></span></div>
-      <h1>Zobacz, jak<br>zmieniało się <i>miejsce.</i></h1>
-      <p class="intro">Zaznacz obszar i przeglądaj dostępne archiwa ortofotomap i zdjęć satelitarnych.</p>
-
-      <div class="step-title"><span class="step-number">01</span><span>WYBRANY OBSZAR</span></div>
-      <div id="selection-card" class="selection-card empty">
-        <span class="selection-icon">⌖</span>
-        <div><strong id="selection-title">Jeszcze nic tu nie ma</strong><span id="selection-subtitle">Użyj narzędzia prostokąta na mapie</span></div>
-        <button id="clear-selection" class="clear-button" title="Wyczyść zaznaczenie" hidden>×</button>
-      </div>
-
-      <div class="source-picker">
-        <label for="source-select">ŹRÓDŁO ZDJĘĆ</label>
-        <select id="source-select">
-          <option value="esri">Esri Wayback · archiwum</option>
-          <option value="geoportal">Geoportal · ortofotomapy archiwalne</option>
-        </select>
-
-      </div>
-
-      <div class="step-title second-step"><span class="step-number">02</span><span>DOSTĘPNE UJĘCIA</span><span id="count" class="count">—</span></div>
-      <div id="status" class="status"><span class="status-mark">✳</span><span>Zaznacz obszar na mapie, aby sprawdzić archiwum.</span></div>
-      <div class="list-tools">
-        <input id="search-releases" type="search" placeholder="Szukaj roku lub daty…" aria-label="Szukaj ujęć po dacie">
-        <div class="selection-tools">
-          <button id="select-visible" type="button">ZAZNACZ WIDOCZNE</button>
-          <button id="deselect-visible" type="button">ODZNACZ WIDOCZNE</button>
-        </div>
-        <span id="search-count" class="search-count"></span>
-      </div>
-      <div id="imagery-list" class="imagery-list" aria-live="polite"></div>
-
-      <div class="panel-footer">
-        <div class="zip-summary"><span class="zip-icon">⇩</span><span id="zip-label">Pliki będą podpisane datą ujęcia</span></div>
-        <button id="download" class="download" disabled><span>POBIERZ PACZKĘ ZIP</span><span class="download-arrow">↓</span></button>
-        <p class="license-note">Źródła historyczne: Esri Wayback i archiwalne ortofotomapy Geoportalu.</p>
-      </div>
-    </aside>
-  </main>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-  <script src="https://unpkg.com/proj4@2.11.0/dist/proj4.js"></script>
-  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script type="module" src="./app.js"></script>
-</body>
-</html>
-
+<header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">▧</span>Warstwy czasu</a><span class="top-note">Archiwum zdjęć lotniczych i satelitarnych</span><span class="header-status" id="header-status">Wybierz obszar na mapie</span></header>
+<main class="workspace">
+<section class="map-panel" aria-label="Wybór obszaru">
+<div id="map"></div>
+<div class="map-search">
+<form id="address-search-form" autocomplete="off"><label for="address-query">Adres</label><div class="search-row"><input id="address-query" type="search" placeholder="Miejscowość, ulica, numer" autocomplete="off" aria-autocomplete="list" aria-controls="address-suggestions"><button type="submit" aria-label="Szukaj adresu">⌕</button></div><div id="address-suggestions" class="suggestions" role="listbox" hidden></div><span id="address-status" class="search-status" role="status"></span></form>
+<form id="parcel-search-form" autocomplete="off"><label for="parcel-query">Identyfikator działki</label><div class="search-row"><input id="parcel-query" type="search" placeholder="np. 141201_1.0001.6509"><button type="submit" aria-label="Szukaj działki">⌕</button></div><span id="parcel-status" class="search-status" role="status"></span></form>
+</div>
+<button id="draw-area" class="draw-area" type="button"><span aria-hidden="true">▧</span> Rysuj obszar</button>
+<button id="locate" class="locate" type="button" aria-label="Moja lokalizacja" title="Moja lokalizacja">◎</button>
+<div class="area-bar"><div><strong id="selection-title">Wybierz miejsce</strong><span id="selection-subtitle">Wyszukaj adres lub działkę i narysuj prostokąt.</span></div><button id="clear-selection" type="button" hidden>Wyczyść</button></div>
+</section>
+<section class="content-panel" aria-label="Podgląd i dostępne zdjęcia">
+<section class="preview-panel" aria-label="Podgląd zdjęcia">
+<div class="section-heading"><div><span class="eyebrow">Podgląd przed pobraniem</span><h1 id="preview-title">Twój obszar w czasie</h1></div><span id="preview-state" class="badge neutral">Podgląd</span></div>
+<div class="preview-stage" id="preview-stage"><img id="preview-image" alt="Podgląd wybranego zdjęcia archiwalnego" hidden><div id="preview-empty" class="preview-empty"><span class="empty-icon" aria-hidden="true">▧</span><strong id="preview-message">Zaznacz obszar na mapie</strong><span id="preview-detail">Tutaj zobaczysz zdjęcie, które trafi do ZIP.</span></div></div>
+<div class="preview-bottom"><span id="preview-caption">Esri Wayback · Geoportal</span><button id="retry-image" type="button" hidden>Spróbuj ponownie</button></div>
+</section>
+<section class="gallery-panel" aria-label="Dostępne ujęcia">
+<div class="gallery-heading"><div><h2>Zdjęcia obszaru <span id="count" class="count">0</span></h2><span id="availability-summary">Dostępność sprawdzamy przed pobraniem.</span></div><select id="source-select" aria-label="Źródło zdjęć"><option value="esri">Esri Wayback</option><option value="geoportal">Geoportal</option></select></div>
+<div class="gallery-tools"><input id="search-releases" type="search" placeholder="Szukaj roku lub daty" aria-label="Filtruj ujęcia"><button id="select-visible" type="button">Zaznacz dostępne</button><button id="deselect-visible" type="button">Odznacz</button></div>
+<div id="imagery-list" class="image-grid" aria-label="Miniatury zdjęć"></div>
+<div class="gallery-navigation"><span class="legend"><i class="dot ready"></i> Dostępne <i class="dot loading"></i> Ładowanie <i class="dot missing"></i> Brak / błąd</span><div class="pager"><button id="page-prev" type="button" aria-label="Poprzednia strona">‹</button><span id="page-label">1 / 1</span><button id="page-next" type="button" aria-label="Następna strona">›</button></div></div>
+<div id="status" class="status" role="status">Zaznacz obszar, aby sprawdzić zdjęcia.</div>
+<div class="download-bar"><div><strong id="zip-label">0 zdjęć wybranych</strong><span id="zip-detail">PNG z podpisem źródła i daty</span></div><button id="download" type="button" disabled>Pobierz ZIP <span aria-hidden="true">↓</span></button></div>
+</section>
+</section>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script><script src="https://unpkg.com/proj4@2.11.0/dist/proj4.js"></script><script type="module" src="./app.js"></script>
+</body></html>
