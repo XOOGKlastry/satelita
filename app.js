@@ -64,7 +64,7 @@ function clearSelection() {
 }
 
 async function findReleases() {
-  const id = ++requestId; selected.clear(); $('imagery-list').replaceChildren(); $('count').textContent = '…';
+  const id = ++requestId; selected.clear(); $('imagery-list').replaceChildren(); $('count').textContent = '…'; $('search-releases').value = ''; $('search-count').textContent = '';
   $('download').disabled = true;
   if (imagerySource === 'google') {
     $('count').textContent = 'PODGLĄD';
@@ -109,7 +109,7 @@ function renderReleases() {
   $('imagery-list').innerHTML = releases.map((r) => `<label class="imagery-item" data-id="${r.releaseNum}">
     ${r.provider === 'geoportal' ? '<span class="thumb geo-thumb">PL</span>' : `<img class="thumb" loading="lazy" src="${r.itemURL.replace('{level}/{row}/{col}', `${Math.min(map.getZoom(), 15)}/${Math.floor(map.project(bounds.getCenter(), Math.min(map.getZoom(),15)).y/256)}/${Math.floor(map.project(bounds.getCenter(), Math.min(map.getZoom(),15)).x/256)}`)}" alt="">`}
     <span class="item-info"><span class="item-date">${escapeHtml(r.releaseDateLabel)}</span><span class="item-meta">${r.provider === 'geoportal' ? 'rok zapytania · GUGiK / Geoportal' : `wydanie archiwum · ${escapeHtml(r.layerIdentifier || 'World Imagery')}`}</span></span>
-    <input class="item-check" type="checkbox" checked aria-label="Dodaj wydanie ${escapeHtml(r.releaseDateLabel)} do ZIP">
+    <input class="item-check" type="checkbox" ${selected.has(r.releaseNum) ? 'checked' : ''} aria-label="Dodaj wydanie ${escapeHtml(r.releaseDateLabel)} do ZIP">
   </label>`).join('');
   $('imagery-list').querySelectorAll('.imagery-item').forEach((row) => {
     row.addEventListener('click', async (e) => {
@@ -118,9 +118,32 @@ function renderReleases() {
     });
   });
   $('imagery-list').querySelectorAll('img.thumb').forEach(img => img.addEventListener('error', () => { img.style.visibility = 'hidden'; }, { once: true }));
-  $('download').disabled = false; showRelease(releases[0], $('imagery-list').firstElementChild);
+  filterRows(); syncSelection(); showRelease(releases[0], $('imagery-list').firstElementChild);
 }
-function toggleRelease(id, checked) { checked ? selected.add(id) : selected.delete(id); $('download').disabled = !selected.size; $('zip-label').textContent = `${selected.size} wybranych wydań do eksportu`; }
+function filterRows() {
+  const query = $('search-releases').value.trim().toLocaleLowerCase('pl');
+  let visible = 0;
+  $('imagery-list').querySelectorAll('.imagery-item').forEach(row => {
+    const match = row.textContent.toLocaleLowerCase('pl').includes(query);
+    row.hidden = !match; if (match) visible++;
+  });
+  $('search-count').textContent = releases.length ? `${visible} z ${releases.length} pozycji widocznych` : '';
+}
+function syncSelection() {
+  $('download').disabled = !selected.size || imagerySource === 'google';
+  $('zip-label').textContent = `${selected.size} wybranych ujęć do eksportu`;
+  $('imagery-list').querySelectorAll('.imagery-item').forEach(row => {
+    const box = row.querySelector('.item-check');
+    box.checked = selected.has(Number(row.dataset.id));
+  });
+}
+function toggleRelease(id, checked) { checked ? selected.add(id) : selected.delete(id); syncSelection(); }
+function setVisibleSelected(checked) {
+  $('imagery-list').querySelectorAll('.imagery-item:not([hidden])').forEach(row => {
+    const id = Number(row.dataset.id); checked ? selected.add(id) : selected.delete(id);
+  });
+  syncSelection();
+}
 
 async function showRelease(item, row) {
   if (currentLayer) map.removeLayer(currentLayer);
@@ -226,6 +249,9 @@ $('google-key-button').addEventListener('click', async () => {
 if (localStorage.getItem('warstwy-czasu-google-key')) $('google-key-button').textContent = '✓ KLUCZ ZAPISANY LOKALNIE';
 
 $('locate').addEventListener('click', () => map.locate({ setView: true, maxZoom: 15 }));
+$('search-releases').addEventListener('input', filterRows);
+$('select-visible').addEventListener('click', () => setVisibleSelected(true));
+$('deselect-visible').addEventListener('click', () => setVisibleSelected(false));
 map.on('locationfound', e => L.circleMarker(e.latlng, { radius: 7, color: '#31583c', fillOpacity: .7 }).addTo(map));
 map.on('locationerror', () => setStatus('Przeglądarka nie udostępniła lokalizacji. Możesz przesunąć mapę ręcznie.', 'error'));
 updateSelectionCard();
