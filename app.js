@@ -66,14 +66,9 @@ function clearSelection() {
 async function findReleases() {
   const id = ++requestId; selected.clear(); $('imagery-list').replaceChildren(); $('count').textContent = '…'; $('search-releases').value = ''; $('search-count').textContent = '';
   $('download').disabled = true;
-  if (imagerySource === 'google') {
-    $('count').textContent = 'PODGLĄD';
-    setStatus('Google Satellite pokazuje zdjęcia do podglądu. Google nie udostępnia tu archiwum lat, a warunki Map Tiles API nie pozwalają eksportować jego kafelków do ZIP.', '');
-    return;
-  }
   if (imagerySource === 'geoportal') {
-    const thisYear = new Date().getFullYear();
-    releases = Array.from({ length: thisYear - 1957 + 1 }, (_, i) => {
+    const thisYear = Math.min(new Date().getFullYear(), 2025);
+    releases = Array.from({ length: thisYear - 1995 + 1 }, (_, i) => {
       const year = thisYear - i;
       return { provider: 'geoportal', releaseNum: year, releaseDateLabel: String(year), layerIdentifier: 'ortofotomapa archiwalna' };
     });
@@ -130,7 +125,7 @@ function filterRows() {
   $('search-count').textContent = releases.length ? `${visible} z ${releases.length} pozycji widocznych` : '';
 }
 function syncSelection() {
-  $('download').disabled = !selected.size || imagerySource === 'google';
+  $('download').disabled = !selected.size;
   $('zip-label').textContent = `${selected.size} wybranych ujęć do eksportu`;
   $('imagery-list').querySelectorAll('.imagery-item').forEach(row => {
     const box = row.querySelector('.item-check');
@@ -165,7 +160,6 @@ async function showRelease(item, row) {
 
 // Capture the visible map viewport after the selected imagery layer has loaded.
 async function exportRelease(item, zip) {
-  if (item.provider === 'google') throw new Error('Google Satellite jest tylko do podglądu i nie może być zapisany w ZIP.');
   const row = $('imagery-list').querySelector(`[data-id="${item.releaseNum}"]`);
   await showRelease(item, row);
   $('snapshot-label').textContent = `${item.provider === 'geoportal' ? 'GEOPORTAL' : 'ESRI'} · ${item.exportLabel.replace('_','/')}`;
@@ -192,7 +186,7 @@ $('download').addEventListener('click', async () => {
   const button = $('download'); button.disabled = true; button.querySelector('span').textContent = 'TWORZĘ PACZKĘ…';
   setStatus(`Eksportuję 0 z ${chosen.length} zdjęć. Pozostaw tę kartę otwartą.`, 'loading');
   try {
-    const zip = new JSZip(); zip.file('obszar.txt', `Zaznaczenie: ${boundsText(bounds)}\nEksport: zrzuty widocznego okna mapy, zbliżenie ${map.getZoom()}\nPliki są podpisane dostawcą i datą. Google Satellite jest wyłączone z ZIP; pozostaje warstwą podglądu.\n`);
+    const zip = new JSZip(); zip.file('obszar.txt', `Zaznaczenie: ${boundsText(bounds)}\nEksport: zrzuty widocznego okna mapy, zbliżenie ${map.getZoom()}\nPliki są podpisane dostawcą i datą.\n`);
     for (let i=0; i<chosen.length; i++) {
       await exportRelease(chosen[i], zip);
       setStatus(`Eksportuję ${i+1} z ${chosen.length} zdjęć…`, 'loading');
@@ -204,49 +198,12 @@ $('download').addEventListener('click', async () => {
   finally { button.disabled = !selected.size; button.querySelector('span').textContent = 'POBIERZ PACZKĘ ZIP'; }
 });
 
-async function showGoogleSatellite() {
-  if (currentLayer) map.removeLayer(currentLayer); currentLayer = null;
-  const key = localStorage.getItem('warstwy-czasu-google-key');
-  if (!key) {
-    setStatus('Aby użyć Google Satellite, dodaj swój klucz Maps Tile API. Wymagany jest włączony billing; ogranicz klucz do Maps Tile API i swojej domeny.', 'error');
-    return;
-  }
-  setStatus('Łączę z Google Maps Tile API…', 'loading');
-  try {
-    const response = await fetch(`https://tile.googleapis.com/v1/createSession?key=${encodeURIComponent(key)}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mapType: 'satellite', language: 'pl', region: 'PL' })
-    });
-    if (!response.ok) throw new Error(`Google API zwróciło HTTP ${response.status}`);
-    const { session } = await response.json();
-    currentLayer = L.tileLayer(`https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=${encodeURIComponent(session)}&key=${encodeURIComponent(key)}`, {
-      maxZoom: 20, tileSize: 256, attribution: 'Google Maps'
-    }).addTo(map);
-    $('map-attribution').textContent = 'Google Maps';
-    setStatus('Google Satellite działa jako bieżący podkład do oglądania. Historyczne Google Earth i eksport jego kafelków nie są dostępne w tej aplikacji.', '');
-  } catch (error) {
-    console.error(error); $('map-attribution').textContent = '© Esri, Maxar, Earthstar Geographics';
-    setStatus(`Nie udało się uruchomić Google Satellite: ${error.message}. Sprawdź klucz, Maps Tile API i billing.`, 'error');
-  }
-}
-
 $('source-select').addEventListener('change', async (event) => {
   imagerySource = event.target.value;
   if (currentLayer) map.removeLayer(currentLayer); currentLayer = null;
-  $('map-attribution').textContent = imagerySource === 'google' ? 'Google Maps' : imagerySource === 'geoportal' ? 'GUGiK / Geoportal.gov.pl' : '© Esri, Maxar, Earthstar Geographics';
-  if (imagerySource === 'google') { await showGoogleSatellite(); return; }
+  $('map-attribution').textContent = imagerySource === 'geoportal' ? 'GUGiK / Geoportal.gov.pl' : '© Esri, Maxar, Earthstar Geographics';
   if (bounds) await findReleases();
 });
-$('google-key-button').addEventListener('click', async () => {
-  const existing = localStorage.getItem('warstwy-czasu-google-key') || '';
-  const key = prompt('Wklej klucz Google Maps Tile API. Zapisze się tylko w pamięci tej przeglądarki, nie w repozytorium GitHub.', existing);
-  if (key === null) return;
-  if (!key.trim()) localStorage.removeItem('warstwy-czasu-google-key');
-  else localStorage.setItem('warstwy-czasu-google-key', key.trim());
-  $('google-key-button').textContent = key.trim() ? '✓ KLUCZ ZAPISANY LOKALNIE' : '＋ USTAW KLUCZ GOOGLE';
-  if (imagerySource === 'google') await showGoogleSatellite();
-});
-if (localStorage.getItem('warstwy-czasu-google-key')) $('google-key-button').textContent = '✓ KLUCZ ZAPISANY LOKALNIE';
 
 $('locate').addEventListener('click', () => map.locate({ setView: true, maxZoom: 15 }));
 $('search-releases').addEventListener('input', filterRows);
@@ -255,3 +212,4 @@ $('deselect-visible').addEventListener('click', () => setVisibleSelected(false))
 map.on('locationfound', e => L.circleMarker(e.latlng, { radius: 7, color: '#31583c', fillOpacity: .7 }).addTo(map));
 map.on('locationerror', () => setStatus('Przeglądarka nie udostępniła lokalizacji. Możesz przesunąć mapę ręcznie.', 'error'));
 updateSelectionCard();
+
