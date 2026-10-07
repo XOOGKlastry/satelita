@@ -4,7 +4,7 @@ Aplikacja Leaflet do przeglądania archiwalnych zdjęć wybranego obszaru i pobi
 
 ## Generator animacji
 
-Link „Zrób animację” otwiera generator, który przyjmuje ZIP pobrany z aplikacji. Pliki są przetwarzane lokalnie w przeglądarce; generator tworzy animowany GIF oraz samodzielny plik HTML gotowy do umieszczenia w repozytorium jako osobna podstrona.
+Link „Zrób animację” otwiera generator, który przyjmuje ZIP pobrany z aplikacji. Pliki są przetwarzane lokalnie w przeglądarce; generator tworzy animowany GIF oraz samodzielny plik HTML gotowy do umieszczenia w repozytorium jako osobna podstrona. Identyczne zdjęcia są porównywane bez stopki z podpisem; przy powtórzeniach zostaje najstarsza data.
 
 ## Obsługa
 

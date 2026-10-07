@@ -13,6 +13,9 @@ UŻYCIE
 4. Aby opublikować wynik jako kolejną stronę, utwórz folder w repozytorium,
    zapisz pobrany plik HTML jako index.html i zatwierdź zmianę.
 
+Identyczne zdjęcia są rozpoznawane po pikselach części obrazowej (bez stopki z
+podpisem). Jeśli występują pod różnymi datami, zostaje najstarsza data.
+
 ZIP jest odczytywany w przeglądarce. Zdjęcia nie są przesyłane na serwer.
 Generator pobiera JSZip i gif.js z jsDelivr, więc do jego działania potrzebny
 jest dostęp do internetu.
