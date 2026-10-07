@@ -2,6 +2,10 @@
 
 Aplikacja Leaflet do przeglądania archiwalnych zdjęć wybranego obszaru i pobierania ich do ZIP.
 
+## Generator animacji
+
+Link „Zrób animację” otwiera generator, który przyjmuje ZIP pobrany z aplikacji. Pliki są przetwarzane lokalnie w przeglądarce; generator tworzy animowany GIF oraz samodzielny plik HTML gotowy do umieszczenia w repozytorium jako osobna podstrona.
+
 ## Obsługa
 
 1. Wyszukaj adres z podpowiedziami lub działkę po pełnym identyfikatorze. Obszar możesz też narysować przyciskiem u góry mapy.
