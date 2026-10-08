@@ -40,8 +40,10 @@ Uruchom przez HTTP, np. `python -m http.server 8000`, i otwórz http://localhost
 
 GitHub Pages publikuje stronę po zmianie main. W Settings → Pages ustaw Build and deployment → Source: GitHub Actions.
 
-## Dodatkowe archiwa i pobieranie wszystkiego
+## Dodatkowe archiwa szczegółowych ortofotomap
 
-Sentinel-2 EOX: roczne mozaiki odczytywane z katalogu WMS, około 10 m/piksel. Mozaika roczna nie oznacza pojedynczego zdjęcia ani jednej daty pozyskania. Dostępność przestrzenna sprawdzana jest tak samo jak dla pozostałych źródeł.
+Geoportal HD: osobna usługa archiwalna ortofotomapy wysokiej rozdzielczości (HighResolutionTime). Dostępne lata odczytujemy z katalogu WMS; rok oznacza zapytanie czasu, nie potwierdzoną datę nalotu. Brak obrazu w danym obszarze jest pokazywany w galerii.
 
-Duży przycisk „Pobierz wszystkie możliwe” sprawdza wszystkie trzy źródła i pobiera jeden ZIP z gotowymi obrazami, niezależnie od filtra i ręcznego zaznaczenia. Wczytane obrazy bieżącego źródła są używane ponownie. Błędy pojedynczego źródła nie blokują reszty. Zmiana obszaru anuluje poprzednie zadanie. Pliki: sentinel_RRRR.png. Manifest zapisuje także pominięte odpowiedzi i błędy. ZIP zawiera ZRODLA-I-LICENCJE.txt. EOX: CC BY 4.0 dla 2016, późniejsze mozaiki w bezpłatnej usłudze do użytku niekomercyjnego zgodnie z licencją źródła.
+Poznań GEOPOZ: miejskie archiwum ortofotomap RGB, z dwóch publicznych usług WMS. Warstwy i roczniki pochodzą z katalogów; zdjęcia są dostępne tylko w zasięgu danej warstwy. Poza zasięgiem nie wysyłamy GetMap. Miesiąc nie jest dopisywany, jeśli katalog go nie podaje. Dostępne także starsze zdjęcia lotnicze; ich szczegółowość zależy od roku. Dane przypisujemy GEOPOZ i zapisujemy warunki CC BY 4.0.
+
+Duży przycisk „Pobierz wszystkie możliwe” sprawdza Esri, Geoportal, Geoportal HD i Poznań, po czym pobiera jeden ZIP ze wczytanymi obrazami. Nie zależy od filtra ani ręcznego zaznaczenia. Gotowe podglądy bieżącego źródła są używane ponownie. Braki i błędy nie blokują reszty; raport jest w obszar.json. Zmiana obszaru anuluje poprzednie zadanie. Nazwy: geoportal_hd_RRRR.png, poznan_RRRR.png (numery przy kilku warstwach z tego samego roku). ZIP zawiera ZRODLA-I-LICENCJE.txt. Nie ma źródeł z mozaikami satelitarnymi o rozdzielczości dziesiątek metrów.

@@ -1,5 +1,5 @@
 import { getWaybackItemsWithLocalChanges, getMetadata } from 'https://esm.sh/@esri/wayback-core@1.1.0';
-import { SOURCE_NAMES, WMS_SOURCES, archiveItems, annualImage } from './wms-sources.js';
+import { SOURCE_NAMES, WMS_SOURCES, archiveItems, archiveImage } from './wms-sources.js';
 import JSZip from 'https://esm.sh/jszip@3.10.1';
 import { geographicSourceRow, hasImagery, uniqueFilename } from './image-core.js';
 
@@ -126,7 +126,7 @@ async function discover() {
           const results=await catalogDeadline(Promise.all(points.map(p=>getWaybackItemsWithLocalChanges({longitude:p.lng,latitude:p.lat},Math.max(8,Math.min(17,map.getZoom())),{onlyUseSizeToFilterDuplicates:true}))),signal);
           const unique=new Map();results.flat().forEach(item=>unique.set(item.releaseNum,item));
           found=[...unique.values()].sort((a,b)=>b.releaseDatetime-a.releaseDatetime).map(item=>({...item,id:'esri:'+item.releaseNum,provider,state:'pending'}));
-        }else found=await archiveItems(provider,signal);
+        }else found=await archiveItems(provider,signal,context);
       }catch(error){
         if(signal.aborted||id!==generation)return;
         found=[{id:provider+':catalog-error',provider,state:'error',catalogError:true,releaseDateLabel:'Archiwum',error:'Nie można odczytać katalogu: '+error.message}];
@@ -191,7 +191,7 @@ async function loadItem(item,id,signal,context,bounds) {
   if(signal.aborted||id!==generation)return;
   item.state='loading';renderGrid();if(activeId===item.id)showPreview();syncCounts();
   try{
-    const raster=item.provider==='geoportal'?await geoportalImage(item,context,signal):item.provider==='esri'?await esriImage(item,context,signal,bounds):await annualImage(item,context,signal,(lat,lng)=>L.CRS.EPSG3857.project(L.latLng(lat,lng)),imageBitmap,canvas);
+    const raster=item.provider==='geoportal'?await geoportalImage(item,context,signal):item.provider==='esri'?await esriImage(item,context,signal,bounds):await archiveImage(item,context,signal,imageBitmap,canvas);
     if(signal.aborted||id!==generation)return;
     if(!imageryPresent(raster)){item.state='empty';item.error='Źródło zwróciło pusty obraz dla wybranego obszaru.';}
     else{
@@ -202,8 +202,8 @@ async function loadItem(item,id,signal,context,bounds) {
       const labeled=canvas(raster.width,raster.height+36),ctx=labeled.getContext('2d');
       ctx.drawImage(raster,0,0);ctx.fillStyle='#162336';ctx.fillRect(0,raster.height,labeled.width,36);
       ctx.fillStyle='#fff';ctx.font='13px "Segoe UI",Arial,sans-serif';ctx.textBaseline='middle';
-      ctx.fillText(sourceName(item)+' · '+(item.acquisition?item.acquisition:item.releaseDateLabel)+(item.provider==='geoportal'?' · rok zapytania':item.provider!=='esri'?' · mozaika roczna':item.acquisition?' · data ujęcia':' · wydanie'),12,raster.height+(item.attribution?12:18));
-      if(item.attribution){ctx.font='9px "Segoe UI",Arial,sans-serif';ctx.fillText(item.attribution+' · '+(item.provider==='sentinel'?'CC BY'+(item.releaseDateLabel==='2016'?'':'-NC-SA')+' 4.0':''),12,raster.height+29,labeled.width-24);}
+      ctx.fillText(sourceName(item)+' · '+(item.acquisition?item.acquisition:item.releaseDateLabel)+(['geoportal','geoportal_hd'].includes(item.provider)?' · rok zapytania':item.provider==='poznan'?' · rok ortofotomapy':item.acquisition?' · data ujęcia':' · wydanie'),12,raster.height+(item.attribution?12:18));
+      if(item.attribution){ctx.font='9px "Segoe UI",Arial,sans-serif';ctx.fillText(item.attribution,12,raster.height+29,labeled.width-24);}
       const blob=await canvasBlob(labeled);
       if(signal.aborted||id!==generation)return;
       item.blob=blob;item.rasterUrl=URL.createObjectURL(rawBlob);item.url=URL.createObjectURL(blob);item.state='ready';item.error='';
@@ -224,7 +224,7 @@ function renderGrid() {
   const visible=filtered.slice(page*pageSize,(page+1)*pageSize);
   $('imagery-list').style.gridTemplateColumns='repeat('+columns+', minmax(0,1fr))';
   const rows=Math.max(1,Math.ceil(pageSize/columns));$('imagery-list').style.gridTemplateRows='repeat('+rows+', minmax(0,1fr))';
-  $('imagery-list').innerHTML=visible.length?visible.map(item=>'<article class="image-card '+(item.id===activeId?'active':'')+'" data-id="'+html(item.id)+'" data-state="'+item.state+'" role="button" tabindex="0" aria-label="Podgląd '+html(rowDate(item))+', '+STATES[item.state]+'" title="'+html(item.error||item.dateKind||STATES[item.state])+'"><div class="card-preview">'+(item.url?'<img src="'+item.url+'" alt="">':'<span aria-hidden="true">'+(item.state==='empty'||item.state==='error'?'×':'▧')+'</span>')+'<span class="card-source">'+html({esri:'Esri',geoportal:'Geoportal',sentinel:'Sentinel-2'}[item.provider])+'</span><span class="card-state">'+STATES[item.state]+'</span></div><div class="card-bottom"><span class="card-date">'+html(rowDate(item))+'</span><input class="card-check" type="checkbox" aria-label="Dodaj '+html(rowDate(item))+' do ZIP" '+(selected.has(item.id)?'checked ':'')+(item.state!=='ready'?'disabled':'')+'></div></article>').join(''):'<div class="grid-empty">'+(areaBounds?'Brak pozycji dla tego filtra.':'Tutaj pojawią się miniatury zdjęć.')+'</div>';
+  $('imagery-list').innerHTML=visible.length?visible.map(item=>'<article class="image-card '+(item.id===activeId?'active':'')+'" data-id="'+html(item.id)+'" data-state="'+item.state+'" role="button" tabindex="0" aria-label="Podgląd '+html(rowDate(item))+', '+STATES[item.state]+'" title="'+html(item.error||item.dateKind||STATES[item.state])+'"><div class="card-preview">'+(item.url?'<img src="'+item.url+'" alt="">':'<span aria-hidden="true">'+(item.state==='empty'||item.state==='error'?'×':'▧')+'</span>')+'<span class="card-source">'+html({esri:'Esri',geoportal:'Geoportal',geoportal_hd:'Geoportal HD',poznan:'Poznań'}[item.provider])+'</span><span class="card-state">'+STATES[item.state]+'</span></div><div class="card-bottom"><span class="card-date">'+html(rowDate(item))+'</span><input class="card-check" type="checkbox" aria-label="Dodaj '+html(rowDate(item))+' do ZIP" '+(selected.has(item.id)?'checked ':'')+(item.state!=='ready'?'disabled':'')+'></div></article>').join(''):'<div class="grid-empty">'+(areaBounds?'Brak pozycji dla tego filtra.':'Tutaj pojawią się miniatury zdjęć.')+'</div>';
   $('imagery-list').querySelectorAll('.image-card').forEach(card=>{
     const item=items.find(value=>value.id===card.dataset.id);
     const preview=()=>{activeId=item.id;previewPinned=true;renderGrid();showPreview();};
@@ -252,7 +252,7 @@ function showPreview() {
   $('preview-state').className='badge '+(item?.state||'neutral');
   $('preview-state').textContent=item?STATES[item.state]:'Podgląd';
   $('preview-title').textContent=item?sourceName(item)+' · '+rowDate(item):'Twój obszar w czasie';
-  $('preview-caption').textContent=item?(item.dateKind||sourceName(item)):'Esri · Geoportal · Sentinel-2';
+  $('preview-caption').textContent=item?(item.dateKind||sourceName(item)):'Esri · Geoportal · Geoportal HD · Poznań';
   removePreviewLayer();
   if(item?.state==='ready'){
     $('preview-image').src=item.url;$('preview-image').hidden=false;$('preview-empty').hidden=true;
