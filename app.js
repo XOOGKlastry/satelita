@@ -224,7 +224,7 @@ function renderGrid() {
   const visible=filtered.slice(page*pageSize,(page+1)*pageSize);
   $('imagery-list').style.gridTemplateColumns='repeat('+columns+', minmax(0,1fr))';
   const rows=Math.max(1,Math.ceil(pageSize/columns));$('imagery-list').style.gridTemplateRows='repeat('+rows+', minmax(0,1fr))';
-  $('imagery-list').innerHTML=visible.length?visible.map(item=>'<article class="image-card '+(item.id===activeId?'active':'')+'" data-id="'+html(item.id)+'" data-state="'+item.state+'" role="button" tabindex="0" aria-label="Podgląd '+html(rowDate(item))+', '+STATES[item.state]+'" title="'+html(item.error||item.dateKind||STATES[item.state])+'"><div class="card-preview">'+(item.url?'<img src="'+item.url+'" alt="">':'<span aria-hidden="true">'+(item.state==='empty'||item.state==='error'?'×':'▧')+'</span>')+'<span class="card-source">'+html({esri:'Esri',geoportal:'Geoportal',sentinel:'Sentinel-2',landsat:'Landsat'}[item.provider])+'</span><span class="card-state">'+STATES[item.state]+'</span></div><div class="card-bottom"><span class="card-date">'+html(rowDate(item))+'</span><input class="card-check" type="checkbox" aria-label="Dodaj '+html(rowDate(item))+' do ZIP" '+(selected.has(item.id)?'checked ':'')+(item.state!=='ready'?'disabled':'')+'></div></article>').join(''):'<div class="grid-empty">'+(areaBounds?'Brak pozycji dla tego filtra.':'Tutaj pojawią się miniatury zdjęć.')+'</div>';
+  $('imagery-list').innerHTML=visible.length?visible.map(item=>'<article class="image-card '+(item.id===activeId?'active':'')+'" data-id="'+html(item.id)+'" data-state="'+item.state+'" role="button" tabindex="0" aria-label="Podgląd '+html(rowDate(item))+', '+STATES[item.state]+'" title="'+html(item.error||item.dateKind||STATES[item.state])+'"><div class="card-preview">'+(item.url?'<img src="'+item.url+'" alt="">':'<span aria-hidden="true">'+(item.state==='empty'||item.state==='error'?'×':'▧')+'</span>')+'<span class="card-source">'+html({esri:'Esri',geoportal:'Geoportal',sentinel:'Sentinel-2'}[item.provider])+'</span><span class="card-state">'+STATES[item.state]+'</span></div><div class="card-bottom"><span class="card-date">'+html(rowDate(item))+'</span><input class="card-check" type="checkbox" aria-label="Dodaj '+html(rowDate(item))+' do ZIP" '+(selected.has(item.id)?'checked ':'')+(item.state!=='ready'?'disabled':'')+'></div></article>').join(''):'<div class="grid-empty">'+(areaBounds?'Brak pozycji dla tego filtra.':'Tutaj pojawią się miniatury zdjęć.')+'</div>';
   $('imagery-list').querySelectorAll('.image-card').forEach(card=>{
     const item=items.find(value=>value.id===card.dataset.id);
     const preview=()=>{activeId=item.id;previewPinned=true;renderGrid();showPreview();};
@@ -252,7 +252,7 @@ function showPreview() {
   $('preview-state').className='badge '+(item?.state||'neutral');
   $('preview-state').textContent=item?STATES[item.state]:'Podgląd';
   $('preview-title').textContent=item?sourceName(item)+' · '+rowDate(item):'Twój obszar w czasie';
-  $('preview-caption').textContent=item?(item.dateKind||sourceName(item)):'Esri · Geoportal · Sentinel-2 · Landsat';
+  $('preview-caption').textContent=item?(item.dateKind||sourceName(item)):'Esri · Geoportal · Sentinel-2';
   removePreviewLayer();
   if(item?.state==='ready'){
     $('preview-image').src=item.url;$('preview-image').hidden=false;$('preview-empty').hidden=true;
