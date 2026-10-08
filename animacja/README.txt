@@ -9,7 +9,7 @@ INSTALACJA PODSTRONY GENERATORA
 UŻYCIE
 1. Wybierz ZIP pobrany z aplikacji Warstwy Czasu.
 2. Kliknij „Utwórz animację”.
-3. Pobierz GIF albo samodzielną podstronę HTML.
+3. Pobierz GIF albo samodzielną podstronę HTML z pauzą, przyciskami poprzednie/następne i suwakiem przewijania.
 4. Aby opublikować wynik jako kolejną stronę, utwórz folder w repozytorium,
    zapisz pobrany plik HTML jako index.html i zatwierdź zmianę.
 
