@@ -1,4 +1,5 @@
 import { getWaybackItemsWithLocalChanges, getMetadata } from 'https://esm.sh/@esri/wayback-core@1.1.0';
+import { SOURCE_NAMES, WMS_SOURCES, archiveItems, annualImage } from './wms-sources.js';
 import JSZip from 'https://esm.sh/jszip@3.10.1';
 import { geographicSourceRow, hasImagery, uniqueFilename } from './image-core.js';
 
@@ -13,7 +14,8 @@ const drawn = new L.FeatureGroup().addTo(map);
 let areaBounds = null, frame = null, items = [], selected = new Set(), activeId = null;
 let job = null, generation = 0, rectangleDrawer = null, currentLayer = null, searchLayer = null;
 let page = 0, pageSize = 8, columns = 4, autoSelect = true, previewPinned = false, exporting = false;
-const sourceName = item => item.provider === 'geoportal' ? 'Geoportal' : 'Esri Wayback';
+const sourceName = item => SOURCE_NAMES[item.provider] || item.provider;
+let allDownloading=false;
 const html = value => String(value || '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rowDate = item => item.acquisition || item.releaseDateLabel;
 function setStatus(message, mode='') {
@@ -81,6 +83,15 @@ async function imageBitmap(url,signal) {
     return await createImageBitmap(blob);
   } finally {clearTimeout(timer);signal?.removeEventListener('abort',abort);}
 }
+function catalogDeadline(promise,signal) {
+  return new Promise((resolve,reject)=>{
+    const abort=()=>{clearTimeout(timer);reject(signal.reason||new DOMException('Anulowano','AbortError'));};
+    const timer=setTimeout(()=>{signal.removeEventListener('abort',abort);reject(new Error('Katalog Esri nie odpowiedział w ciągu 20 sekund.'));},20000);
+    signal.addEventListener('abort',abort,{once:true});
+    if(signal.aborted){abort();return;}
+    promise.then(resolve,reject).finally(()=>{clearTimeout(timer);signal.removeEventListener('abort',abort);});
+  });
+}
 function imageryPresent(c) {
   const sample=canvas(48,48),ctx=sample.getContext('2d',{willReadFrequently:true});
   ctx.drawImage(c,0,0,48,48); return hasImagery(ctx.getImageData(0,0,48,48).data);
@@ -94,35 +105,50 @@ async function geoportalYears(signal) {
     const dates=extent?.textContent.match(/\d{4}-\d{2}-\d{2}/g);
     if(dates?.length>=2){const min=Number(dates[0].slice(0,4)),max=Number(dates[1].slice(0,4));return Array.from({length:max-min+1},(_,i)=>max-i);}
   }catch(error){if(signal.aborted)throw error;}
-  return Array.from({length:31},(_,i)=>2025-i);
+  throw new Error('Nie można odczytać dostępnych lat z katalogu Geoportalu.');
 }
 async function discover() {
   generation++; const id=generation; job?.abort(); job=new AbortController();const signal=job.signal;
-  disposeItems();items=[];selected.clear();activeId=null;page=0;autoSelect=true;previewPinned=false;removePreviewLayer();
-  $('search-releases').value='';renderGrid();showPreview();syncCounts();setStatus('Wyszukuję archiwum…','loading');
+  const cached=new Map(items.filter(item=>item.state==='ready').map(item=>[item.id,item]));
+  const previous=items;items=[];selected.clear();activeId=null;page=0;autoSelect=true;previewPinned=false;removePreviewLayer();
+  $('search-releases').value='';renderGrid();showPreview();syncCounts();setStatus('Wyszukuję archiwa…','loading');
+  const providers=$('source-select').value==='all'?Object.keys(SOURCE_NAMES):[$('source-select').value];
+  const context={...frame},bounds=areaBounds;
   try {
-    if($('source-select').value==='geoportal'){
-      const years=await geoportalYears(signal);
-      if(id!==generation)return;
-      items=years.map(year=>({id:String(year),provider:'geoportal',releaseDateLabel:String(year),state:'pending',exportLabel:String(year)}));
-      setStatus('Rok Geoportalu oznacza zapytanie czasu; rzeczywista data zdjęcia może być inna.');
-    }else{
-      const sw=areaBounds.getSouthWest(),ne=areaBounds.getNorthEast(),center=areaBounds.getCenter();
-      const points=[center,sw,ne,L.latLng(sw.lat,ne.lng),L.latLng(ne.lat,sw.lng)];
-      const found=await Promise.all(points.map(p=>getWaybackItemsWithLocalChanges({longitude:p.lng,latitude:p.lat},Math.max(8,Math.min(17,map.getZoom())),{onlyUseSizeToFilterDuplicates:true})));
-      if(id!==generation)return;
-      const unique=new Map();found.flat().forEach(item=>unique.set(item.releaseNum,item));
-      items=[...unique.values()].sort((a,b)=>b.releaseDatetime-a.releaseDatetime).map(item=>({...item,id:String(item.releaseNum),provider:'esri',state:'pending'}));
-      setStatus(items.length?'Sprawdzam zdjęcia i przygotowuję podglądy…':'Brak wydań archiwum dla tego obszaru.');
-    }
-    activeId=items[0]?.id||null;renderGrid();showPreview();syncCounts();
-    const context={...frame};const selectedBounds=areaBounds;
-    await pool(items,3,item=>loadItem(item,id,signal,context,selectedBounds));
-    if(id!==generation)return;
+    await Promise.all(providers.map(async provider=>{
+      let found=[];
+      try{
+        if(provider==='geoportal'){
+          found=(await geoportalYears(signal)).map(year=>({id:'geoportal:'+year,provider,releaseDateLabel:String(year),state:'pending',exportLabel:String(year)}));
+        }else if(provider==='esri'){
+          const sw=bounds.getSouthWest(),ne=bounds.getNorthEast(),center=bounds.getCenter();
+          const points=[center,sw,ne,L.latLng(sw.lat,ne.lng),L.latLng(ne.lat,sw.lng)];
+          const results=await catalogDeadline(Promise.all(points.map(p=>getWaybackItemsWithLocalChanges({longitude:p.lng,latitude:p.lat},Math.max(8,Math.min(17,map.getZoom())),{onlyUseSizeToFilterDuplicates:true}))),signal);
+          const unique=new Map();results.flat().forEach(item=>unique.set(item.releaseNum,item));
+          found=[...unique.values()].sort((a,b)=>b.releaseDatetime-a.releaseDatetime).map(item=>({...item,id:'esri:'+item.releaseNum,provider,state:'pending'}));
+        }else found=await archiveItems(provider,signal);
+      }catch(error){
+        if(signal.aborted||id!==generation)return;
+        found=[{id:provider+':catalog-error',provider,state:'error',catalogError:true,releaseDateLabel:'Archiwum',error:'Nie można odczytać katalogu: '+error.message}];
+      }
+      if(id!==generation||signal.aborted)return;
+      items.push(...found.map(item=>cached.get(item.id)||item));
+      items.sort((a,b)=>String(b.releaseDateLabel).localeCompare(String(a.releaseDateLabel))||a.provider.localeCompare(b.provider));
+      items.filter(item=>item.state==='ready').forEach(item=>selected.add(item.id));
+      activeId=activeId||items[0]?.id||null;renderGrid();showPreview();syncCounts();
+    }));
+    if(id!==generation||signal.aborted)return;
+    await pool(items.filter(item=>item.state==='pending'),3,item=>loadItem(item,id,signal,context,bounds));
+    if(id!==generation||signal.aborted)return;
     const ready=items.filter(item=>item.state==='ready').length;
-    setStatus(ready?'Podglądy są gotowe. ZIP korzysta z już wczytanych obrazów.':'Nie udało się wczytać zdjęć. Wybierz kartę, aby zobaczyć przyczynę.',ready?'':'error');
-  }catch(error){if(id!==generation||signal.aborted)return;console.error(error);setStatus('Nie udało się pobrać archiwum. Spróbuj zmienić źródło lub obszar.','error');}
+    setStatus(ready?'Gotowe: '+ready+' zdjęć. Puste odpowiedzi i błędy pomijamy w ZIP.':'Brak wczytanych zdjęć. Wybierz kartę, aby zobaczyć przyczynę.',ready?'':'error');
+  }finally{
+    const retained=new Set(items);
+    previous.filter(item=>!retained.has(item)).forEach(item=>{if(item.url)URL.revokeObjectURL(item.url);if(item.rasterUrl)URL.revokeObjectURL(item.rasterUrl);});
+  }
+  return id;
 }
+
 async function geoportalImage(item,context,signal) {
   const params=new URLSearchParams({SERVICE:'WMS',REQUEST:'GetMap',VERSION:'1.1.1',LAYERS:'Raster',STYLES:'',FORMAT:'image/png',TRANSPARENT:'TRUE',SRS:'EPSG:4326',BBOX:[context.west,context.south,context.east,context.north].join(','),WIDTH:String(context.width),HEIGHT:String(context.height),TIME:item.releaseDateLabel+'-01-01'});
   item.sourceUrl=GEO_WMS+'?'+params.toString();
@@ -165,18 +191,19 @@ async function loadItem(item,id,signal,context,bounds) {
   if(signal.aborted||id!==generation)return;
   item.state='loading';renderGrid();if(activeId===item.id)showPreview();syncCounts();
   try{
-    const raster=item.provider==='geoportal'?await geoportalImage(item,context,signal):await esriImage(item,context,signal,bounds);
+    const raster=item.provider==='geoportal'?await geoportalImage(item,context,signal):item.provider==='esri'?await esriImage(item,context,signal,bounds):await annualImage(item,context,signal,(lat,lng)=>L.CRS.EPSG3857.project(L.latLng(lat,lng)),imageBitmap,canvas);
     if(signal.aborted||id!==generation)return;
     if(!imageryPresent(raster)){item.state='empty';item.error='Źródło zwróciło pusty obraz dla wybranego obszaru.';}
     else{
       if(item.provider==='esri')await acquisitionMetadata(item,bounds);
-      else item.dateKind='rok zapytania WMS, nie potwierdzona data ujęcia';
+      else if(item.provider==='geoportal')item.dateKind='rok zapytania WMS, nie potwierdzona data ujęcia';
       if(signal.aborted||id!==generation)return;
       const rawBlob=await canvasBlob(raster);
       const labeled=canvas(raster.width,raster.height+36),ctx=labeled.getContext('2d');
       ctx.drawImage(raster,0,0);ctx.fillStyle='#162336';ctx.fillRect(0,raster.height,labeled.width,36);
       ctx.fillStyle='#fff';ctx.font='13px "Segoe UI",Arial,sans-serif';ctx.textBaseline='middle';
-      ctx.fillText(sourceName(item)+' · '+(item.acquisition?item.acquisition:item.releaseDateLabel)+(item.provider==='geoportal'?' · rok zapytania':item.acquisition?' · data ujęcia':' · wydanie'),12,raster.height+18);
+      ctx.fillText(sourceName(item)+' · '+(item.acquisition?item.acquisition:item.releaseDateLabel)+(item.provider==='geoportal'?' · rok zapytania':item.provider!=='esri'?' · mozaika roczna':item.acquisition?' · data ujęcia':' · wydanie'),12,raster.height+(item.attribution?12:18));
+      if(item.attribution){ctx.font='9px "Segoe UI",Arial,sans-serif';ctx.fillText(item.attribution+' · '+(item.provider==='sentinel'?'CC BY'+(item.releaseDateLabel==='2016'?'':'-NC-SA')+' 4.0':''),12,raster.height+29,labeled.width-24);}
       const blob=await canvasBlob(labeled);
       if(signal.aborted||id!==generation)return;
       item.blob=blob;item.rasterUrl=URL.createObjectURL(rawBlob);item.url=URL.createObjectURL(blob);item.state='ready';item.error='';
@@ -197,7 +224,7 @@ function renderGrid() {
   const visible=filtered.slice(page*pageSize,(page+1)*pageSize);
   $('imagery-list').style.gridTemplateColumns='repeat('+columns+', minmax(0,1fr))';
   const rows=Math.max(1,Math.ceil(pageSize/columns));$('imagery-list').style.gridTemplateRows='repeat('+rows+', minmax(0,1fr))';
-  $('imagery-list').innerHTML=visible.length?visible.map(item=>'<article class="image-card '+(item.id===activeId?'active':'')+'" data-id="'+html(item.id)+'" data-state="'+item.state+'" role="button" tabindex="0" aria-label="Podgląd '+html(rowDate(item))+', '+STATES[item.state]+'" title="'+html(item.error||item.dateKind||STATES[item.state])+'"><div class="card-preview">'+(item.url?'<img src="'+item.url+'" alt="">':'<span aria-hidden="true">'+(item.state==='empty'||item.state==='error'?'×':'▧')+'</span>')+'<span class="card-state">'+STATES[item.state]+'</span></div><div class="card-bottom"><span class="card-date">'+html(rowDate(item))+'</span><input class="card-check" type="checkbox" aria-label="Dodaj '+html(rowDate(item))+' do ZIP" '+(selected.has(item.id)?'checked ':'')+(item.state!=='ready'?'disabled':'')+'></div></article>').join(''):'<div class="grid-empty">'+(areaBounds?'Brak pozycji dla tego filtra.':'Tutaj pojawią się miniatury zdjęć.')+'</div>';
+  $('imagery-list').innerHTML=visible.length?visible.map(item=>'<article class="image-card '+(item.id===activeId?'active':'')+'" data-id="'+html(item.id)+'" data-state="'+item.state+'" role="button" tabindex="0" aria-label="Podgląd '+html(rowDate(item))+', '+STATES[item.state]+'" title="'+html(item.error||item.dateKind||STATES[item.state])+'"><div class="card-preview">'+(item.url?'<img src="'+item.url+'" alt="">':'<span aria-hidden="true">'+(item.state==='empty'||item.state==='error'?'×':'▧')+'</span>')+'<span class="card-source">'+html({esri:'Esri',geoportal:'Geoportal',sentinel:'Sentinel-2',landsat:'Landsat'}[item.provider])+'</span><span class="card-state">'+STATES[item.state]+'</span></div><div class="card-bottom"><span class="card-date">'+html(rowDate(item))+'</span><input class="card-check" type="checkbox" aria-label="Dodaj '+html(rowDate(item))+' do ZIP" '+(selected.has(item.id)?'checked ':'')+(item.state!=='ready'?'disabled':'')+'></div></article>').join(''):'<div class="grid-empty">'+(areaBounds?'Brak pozycji dla tego filtra.':'Tutaj pojawią się miniatury zdjęć.')+'</div>';
   $('imagery-list').querySelectorAll('.image-card').forEach(card=>{
     const item=items.find(value=>value.id===card.dataset.id);
     const preview=()=>{activeId=item.id;previewPinned=true;renderGrid();showPreview();};
@@ -214,7 +241,10 @@ function syncCounts() {
   $('availability-summary').textContent=items.length?ready+' dostępnych · '+loading+' sprawdzanych · '+missing+' brak / błąd':'Dostępność sprawdzamy przed pobraniem.';
   $('header-status').textContent=areaBounds?(ready+' zdjęć gotowych'+(loading?' · trwa sprawdzanie':'')):'Wybierz obszar na mapie';
   const chosen=items.filter(item=>item.state==='ready'&&selected.has(item.id)).length;
-  $('zip-label').textContent=chosen+' zdjęć wybranych';$('download').disabled=exporting||!chosen;
+  $('zip-label').textContent=chosen+' zdjęć wybranych';$('download').disabled=exporting||allDownloading||!chosen;
+  $('download-all').disabled=exporting||allDownloading||!areaBounds;
+  $('source-select').disabled=allDownloading||exporting;
+  if(allDownloading)$('download-all').textContent='Sprawdzanie: '+ready+' gotowych · '+loading+' w kolejce…';
 }
 function showPreview() {
   const item=items.find(value=>value.id===activeId);
@@ -222,11 +252,11 @@ function showPreview() {
   $('preview-state').className='badge '+(item?.state||'neutral');
   $('preview-state').textContent=item?STATES[item.state]:'Podgląd';
   $('preview-title').textContent=item?sourceName(item)+' · '+rowDate(item):'Twój obszar w czasie';
-  $('preview-caption').textContent=item?(item.dateKind||sourceName(item)):'Esri Wayback · Geoportal';
+  $('preview-caption').textContent=item?(item.dateKind||sourceName(item)):'Esri · Geoportal · Sentinel-2 · Landsat';
   removePreviewLayer();
   if(item?.state==='ready'){
     $('preview-image').src=item.url;$('preview-image').hidden=false;$('preview-empty').hidden=true;
-    currentLayer=L.imageOverlay(item.rasterUrl,areaBounds,{pane:'tilePane',attribution:item.provider==='geoportal'?'GUGiK / Geoportal.gov.pl':'Esri, Maxar, Earthstar Geographics'}).addTo(map);
+    currentLayer=L.imageOverlay(item.rasterUrl,areaBounds,{pane:'tilePane',attribution:WMS_SOURCES[item.provider]?.attributionHtml|| (item.provider==='geoportal'?'GUGiK / Geoportal.gov.pl':'Esri, Maxar, Earthstar Geographics')}).addTo(map);
   }else{
     $('preview-message').textContent=!item?'Zaznacz obszar na mapie':item.state==='empty'?'Brak zdjęcia dla tego obszaru':item.state==='error'?'Nie udało się wczytać zdjęcia':'Przygotowuję podgląd…';
     $('preview-detail').textContent=item?.error||(!item?'Tutaj zobaczysz zdjęcie, które trafi do ZIP.':'Dostępność sprawdzana jest automatycznie.');
@@ -235,6 +265,8 @@ function showPreview() {
 }
 $('retry-image').addEventListener('click',()=>{
   const item=items.find(value=>value.id===activeId);if(!item||!areaBounds)return;
+  if(item.catalogError){discover();return;}
+  if(allDownloading)return;
   loadItem(item,generation,job.signal,{...frame},areaBounds);
 });
 $('preview-image').addEventListener('error',()=>{const item=items.find(v=>v.id===activeId);if(item?.state==='ready'){item.state='error';item.error='Podgląd nie został poprawnie wyświetlony.';selected.delete(item.id);renderGrid();showPreview();syncCounts();}});
@@ -250,23 +282,31 @@ new ResizeObserver(entries=>{
   if(columns!==newColumns||pageSize!==newColumns*rows){columns=newColumns;pageSize=columns*rows;page=0;renderGrid();}
 }).observe($('imagery-list'));
 new ResizeObserver(()=>map.invalidateSize()).observe($('map'));
-$('download').addEventListener('click',async()=>{
-  const chosen=items.filter(item=>selected.has(item.id)&&item.state==='ready'&&item.blob);
+async function downloadZip(chosen) {
   if(!chosen.length||exporting)return;exporting=true;syncCounts();$('download').textContent='Tworzenie ZIP…';setStatus('Pakuję '+chosen.length+' gotowych zdjęć…');
   try{
     const zip=new JSZip(),used=new Set(),manifest=[];
     for(const item of chosen){
-      const name=uniqueFilename((item.provider==='geoportal'?'geoportal_':'esri_')+item.exportLabel,used);
+      const name=uniqueFilename(item.provider+'_'+item.exportLabel,used);
       zip.file('zdjecia/'+name+'.png',item.blob);
-      const record={filename:name+'.png',source:sourceName(item),date:rowDate(item),dateMeaning:item.dateKind,release:item.releaseDateLabel,sourceUrl:item.sourceUrl,bounds:frame,checkedAt:new Date().toISOString()};
+      const record={filename:name+'.png',source:sourceName(item),date:rowDate(item),dateMeaning:item.dateKind,release:item.releaseDateLabel,sourceUrl:item.sourceUrl,license:item.license,attribution:item.attribution,layer:item.layer,timeQuery:item.time,bounds:frame,checkedAt:new Date().toISOString()};
       manifest.push(record);zip.file('zdjecia/'+name+'.txt',JSON.stringify(record,null,2));
     }
-    zip.file('obszar.json',JSON.stringify({images:manifest},null,2));
+    zip.file('obszar.json',JSON.stringify({images:manifest,omitted:items.filter(item=>item.state!=='ready').map(item=>({source:sourceName(item),date:rowDate(item),state:item.state,reason:item.error}))},null,2));
+    zip.file('ZRODLA-I-LICENCJE.txt',Object.values(WMS_SOURCES).map(source=>source.name+'\n'+source.attribution+'\n'+source.license).join('\n\n'));
     const blob=await zip.generateAsync({type:'blob',compression:'STORE'});
     const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='warstwy-czasu_'+new Date().toISOString().slice(0,10)+'.zip';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
     setStatus('Gotowe: '+chosen.length+' zdjęć w ZIP.');
   }catch(error){console.error(error);setStatus('Nie udało się utworzyć ZIP: '+error.message,'error');}
   finally{exporting=false;$('download').innerHTML='Pobierz ZIP <span aria-hidden="true">↓</span>';syncCounts();}
+}
+$('download').addEventListener('click',()=>downloadZip(items.filter(item=>selected.has(item.id)&&item.state==='ready'&&item.blob)));
+$('download-all').addEventListener('click',async()=>{
+  if(!areaBounds||allDownloading||exporting)return;
+  allDownloading=true;$('source-select').value='all';syncCounts();
+  try{const id=await discover();if(id===generation&&areaBounds&&!job.signal.aborted){const ready=items.filter(item=>item.state==='ready'&&item.blob);if(ready.length)await downloadZip(ready);else setStatus('Brak dostępnych zdjęć do pobrania.','error');}}
+  catch(error){setStatus('Pobieranie przerwane: '+error.message,'error');}
+  finally{allDownloading=false;$('download-all').textContent='Pobierz wszystkie możliwe ↓';syncCounts();}
 });
 
 // Location search: GUGiK UUG autocomplete and exact ULDK parcel identifiers.

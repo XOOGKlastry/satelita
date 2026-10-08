@@ -24,15 +24,15 @@
 <section class="preview-panel" aria-label="Podgląd zdjęcia">
 <div class="section-heading"><div><span class="eyebrow">Podgląd przed pobraniem</span><h1 id="preview-title">Twój obszar w czasie</h1></div><span id="preview-state" class="badge neutral">Podgląd</span></div>
 <div class="preview-stage" id="preview-stage"><img id="preview-image" alt="Podgląd wybranego zdjęcia archiwalnego" hidden><div id="preview-empty" class="preview-empty"><span class="empty-icon" aria-hidden="true">▧</span><strong id="preview-message">Zaznacz obszar na mapie</strong><span id="preview-detail">Tutaj zobaczysz zdjęcie, które trafi do ZIP.</span></div></div>
-<div class="preview-bottom"><span id="preview-caption">Esri Wayback · Geoportal</span><button id="retry-image" type="button" hidden>Spróbuj ponownie</button></div>
+<div class="preview-bottom"><span id="preview-caption">Esri · Geoportal · Sentinel-2 · Landsat</span><button id="retry-image" type="button" hidden>Spróbuj ponownie</button></div>
 </section>
 <section class="gallery-panel" aria-label="Dostępne ujęcia">
-<div class="gallery-heading"><div><h2>Zdjęcia obszaru <span id="count" class="count">0</span></h2><span id="availability-summary">Dostępność sprawdzamy przed pobraniem.</span></div><select id="source-select" aria-label="Źródło zdjęć"><option value="esri">Esri Wayback</option><option value="geoportal">Geoportal</option></select></div>
+<div class="gallery-heading"><div><h2>Zdjęcia obszaru <span id="count" class="count">0</span></h2><span id="availability-summary">Dostępność sprawdzamy przed pobraniem.</span></div><select id="source-select" aria-label="Źródło zdjęć"><option value="all">Wszystkie źródła</option><option value="esri">Esri Wayback</option><option value="geoportal">Geoportal</option><option value="sentinel">Sentinel-2 EOX</option><option value="landsat">Landsat NASA</option></select></div>
 <div class="gallery-tools"><input id="search-releases" type="search" placeholder="Szukaj roku lub daty" aria-label="Filtruj ujęcia"><button id="select-visible" type="button">Zaznacz dostępne</button><button id="deselect-visible" type="button">Odznacz</button></div>
 <div id="imagery-list" class="image-grid" aria-label="Miniatury zdjęć"></div>
 <div class="gallery-navigation"><span class="legend"><i class="dot ready"></i> Dostępne <i class="dot loading"></i> Ładowanie <i class="dot missing"></i> Brak / błąd</span><div class="pager"><button id="page-prev" type="button" aria-label="Poprzednia strona">‹</button><span id="page-label">1 / 1</span><button id="page-next" type="button" aria-label="Następna strona">›</button></div></div>
 <div id="status" class="status" role="status">Zaznacz obszar, aby sprawdzić zdjęcia.</div>
-<div class="download-bar"><div><strong id="zip-label">0 zdjęć wybranych</strong><span id="zip-detail">PNG z podpisem źródła i daty</span></div><button id="download" type="button" disabled>Pobierz ZIP <span aria-hidden="true">↓</span></button></div>
+<div class="download-bar"><div><strong id="zip-label">0 zdjęć wybranych</strong><span id="zip-detail">PNG z podpisem źródła i daty</span></div><button id="download" type="button" disabled>Pobierz ZIP <span aria-hidden="true">↓</span></button></div><button id="download-all" class="download-all" type="button" disabled title="Sprawdza wszystkie archiwa dla wybranego obszaru i pobiera jeden ZIP">Pobierz wszystkie możliwe ↓</button>
 </section>
 </section>
 </main>

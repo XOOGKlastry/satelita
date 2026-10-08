@@ -39,3 +39,9 @@ Powtarzające się nazwy otrzymują numer, aby nie nadpisywać zdjęć.
 Uruchom przez HTTP, np. `python -m http.server 8000`, i otwórz http://localhost:8000.
 
 GitHub Pages publikuje stronę po zmianie main. W Settings → Pages ustaw Build and deployment → Source: GitHub Actions.
+
+## Dodatkowe archiwa i pobieranie wszystkiego
+
+Sentinel-2 EOX: roczne mozaiki odczytywane z katalogu WMS, około 10 m/piksel. Landsat NASA GIBS: roczne mozaiki WELD, około 30 m/piksel; dostępne okresy odczytywane z Dimension time. Mozaika roczna nie oznacza pojedynczego zdjęcia ani jednej daty pozyskania. Dostępność przestrzenna sprawdzana jest tak samo jak dla pozostałych źródeł.
+
+Duży przycisk „Pobierz wszystkie możliwe” sprawdza wszystkie cztery źródła i pobiera jeden ZIP z gotowymi obrazami, niezależnie od filtra i ręcznego zaznaczenia. Wczytane obrazy bieżącego źródła są używane ponownie. Błędy pojedynczego źródła nie blokują reszty. Zmiana obszaru anuluje poprzednie zadanie. Pliki: sentinel_RRRR.png, landsat_RRRR.png. Manifest zapisuje także pominięte odpowiedzi i błędy. ZIP zawiera ZRODLA-I-LICENCJE.txt. EOX: CC BY 4.0 dla 2016, późniejsze mozaiki w bezpłatnej usłudze do użytku niekomercyjnego zgodnie z licencją źródła.
