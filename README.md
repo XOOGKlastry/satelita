@@ -4,7 +4,7 @@ Aplikacja Leaflet do przeglądania archiwalnych zdjęć wybranego obszaru i pobi
 
 ## Generator animacji
 
-Link „Zrób animację” otwiera generator, który przyjmuje ZIP pobrany z aplikacji. Pliki są przetwarzane lokalnie w przeglądarce; generator tworzy animowany GIF oraz samodzielny plik HTML gotowy do umieszczenia w repozytorium jako osobna podstrona. W HTML można zatrzymać/wznowić pokaz, przechodzić między klatkami i przewijać suwak. Identyczne zdjęcia są porównywane bez stopki z podpisem; przy powtórzeniach zostaje najstarsza data.
+Krok 3 „Zrób animację” otwiera generator wewnątrz strony i automatycznie przekazuje zaznaczone zdjęcia z kroku 2. Generator przyjmuje również ZIP z komputera. Pliki są przetwarzane lokalnie w przeglądarce; generator tworzy animowany GIF oraz samodzielny plik HTML gotowy do umieszczenia w repozytorium jako osobna podstrona. W HTML można zatrzymać/wznowić pokaz, przechodzić między klatkami i przewijać suwak. Identyczne zdjęcia są porównywane bez stopki z podpisem; przy powtórzeniach zostaje najstarsza data.
 
 ## Obsługa
 
@@ -47,3 +47,11 @@ Geoportal HD: osobna usługa archiwalna ortofotomapy wysokiej rozdzielczości (H
 Poznań GEOPOZ: miejskie archiwum ortofotomap RGB, z dwóch publicznych usług WMS. Warstwy i roczniki pochodzą z katalogów; zdjęcia są dostępne tylko w zasięgu danej warstwy. Poza zasięgiem nie wysyłamy GetMap. Miesiąc nie jest dopisywany, jeśli katalog go nie podaje. Dostępne także starsze zdjęcia lotnicze; ich szczegółowość zależy od roku. Dane przypisujemy GEOPOZ i zapisujemy warunki CC BY 4.0.
 
 Duży przycisk „Pobierz wszystkie możliwe” sprawdza Esri, Geoportal, Geoportal HD i Poznań, po czym pobiera jeden ZIP ze wczytanymi obrazami. Nie zależy od filtra ani ręcznego zaznaczenia. Gotowe podglądy bieżącego źródła są używane ponownie. Braki i błędy nie blokują reszty; raport jest w obszar.json. Zmiana obszaru anuluje poprzednie zadanie. Nazwy: geoportal_hd_RRRR.png, poznan_RRRR.png (numery przy kilku warstwach z tego samego roku). ZIP zawiera ZRODLA-I-LICENCJE.txt. Nie ma źródeł z mozaikami satelitarnymi o rozdzielczości dziesiątek metrów.
+
+## Trzy kroki i porównywanie zdjęć
+
+1. Wybierz obszar: osobny panel adresu i działki, rysowanie na mapie, przejście do analizy lub bezpośrednie pobranie wszystkich możliwych zdjęć.
+2. Analizuj i pobierz: mapa pośrodku, po lewej stos warstw i podgląd, po prawej galeria i eksport. Wybierz miniaturę i kliknij „Nałóż wybrane zdjęcie”. Każde zdjęcie ma osobną przezroczystość (0% = pełna widoczność), widoczność, kolejność i usuwanie. Warstwy porównania pozostają po zmianie źródła, lecz są usuwane po zmianie obszaru. Eksport i animacja używają oryginalnych podpisanych zdjęć zaznaczonych w galerii.
+3. Zrób animację: wybrane zdjęcia trafiają automatycznie do generatora w tej samej stronie. Można wrócić do analizy. Pliki GIF i samodzielny HTML pobiera się z generatora. Zmiana obszaru resetuje poprzednią animację.
+
+Układ komputerowy mieści się w wysokości okna. Długi stos warstw przewija się we własnym panelu; na telefonie panele są ustawione pionowo. Dane do animacji są przekazywane lokalnie pomiędzy stronami tego samego pochodzenia.

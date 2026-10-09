@@ -16,6 +16,7 @@ let job = null, generation = 0, rectangleDrawer = null, currentLayer = null, sea
 let page = 0, pageSize = 8, columns = 4, autoSelect = true, previewPinned = false, exporting = false;
 const sourceName = item => SOURCE_NAMES[item.provider] || item.provider;
 let allDownloading=false;
+let comparisonLayers=[],pendingAnimation=null,animationReady=false;
 const html = value => String(value || '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rowDate = item => item.acquisition || item.releaseDateLabel;
 function setStatus(message, mode='') {
@@ -32,7 +33,8 @@ function disposeItems() {
   items.forEach(item=>{ if(item.url)URL.revokeObjectURL(item.url); if(item.rasterUrl)URL.revokeObjectURL(item.rasterUrl); });
 }
 function clearSelection() {
-  generation++; job?.abort(); job=null; disposeItems(); items=[]; selected.clear();
+  generation++; job?.abort(); job=null; clearComparison(true); disposeItems(); items=[]; selected.clear();
+  pendingAnimation=null;animationReady=false;$('animation-frame').removeAttribute('src');setWorkflowStep(1);
   areaBounds=null; frame=null; activeId=null; page=0; previewPinned=false;
   drawn.clearLayers(); removePreviewLayer(); updateArea(); renderGrid(); showPreview(); syncCounts();
   setStatus('Zaznacz obszar, aby sprawdzić zdjęcia.');
@@ -144,7 +146,7 @@ async function discover() {
     setStatus(ready?'Gotowe: '+ready+' zdjęć. Puste odpowiedzi i błędy pomijamy w ZIP.':'Brak wczytanych zdjęć. Wybierz kartę, aby zobaczyć przyczynę.',ready?'':'error');
   }finally{
     const retained=new Set(items);
-    previous.filter(item=>!retained.has(item)).forEach(item=>{if(item.url)URL.revokeObjectURL(item.url);if(item.rasterUrl)URL.revokeObjectURL(item.rasterUrl);});
+    previous.filter(item=>!retained.has(item)&&!comparisonLayers.some(entry=>entry.item===item)).forEach(item=>{if(item.url)URL.revokeObjectURL(item.url);if(item.rasterUrl)URL.revokeObjectURL(item.rasterUrl);});
   }
   return id;
 }
@@ -244,10 +246,14 @@ function syncCounts() {
   $('zip-label').textContent=chosen+' zdjęć wybranych';$('download').disabled=exporting||allDownloading||!chosen;
   $('download-all').disabled=exporting||allDownloading||!areaBounds;
   $('source-select').disabled=allDownloading||exporting;
+  $('continue-analysis').disabled=!areaBounds;$('step-analysis').disabled=!areaBounds;
+  $('area-download-all').disabled=!areaBounds||allDownloading||exporting;
+  $('step-animation').disabled=!chosen||allDownloading||exporting;$('continue-animation').disabled=!chosen||allDownloading||exporting;
   if(allDownloading)$('download-all').textContent='Sprawdzanie: '+ready+' gotowych · '+loading+' w kolejce…';
 }
 function showPreview() {
   const item=items.find(value=>value.id===activeId);
+  $('add-layer').disabled=item?.state!=='ready'||comparisonLayers.some(entry=>entry.item.id===item.id);
   $('preview-image').hidden=true;$('preview-empty').hidden=false;$('retry-image').hidden=true;
   $('preview-state').className='badge '+(item?.state||'neutral');
   $('preview-state').textContent=item?STATES[item.state]:'Podgląd';
@@ -256,7 +262,7 @@ function showPreview() {
   removePreviewLayer();
   if(item?.state==='ready'){
     $('preview-image').src=item.url;$('preview-image').hidden=false;$('preview-empty').hidden=true;
-    currentLayer=L.imageOverlay(item.rasterUrl,areaBounds,{pane:'tilePane',attribution:WMS_SOURCES[item.provider]?.attributionHtml|| (item.provider==='geoportal'?'GUGiK / Geoportal.gov.pl':'Esri, Maxar, Earthstar Geographics')}).addTo(map);
+    if(!comparisonLayers.length)currentLayer=L.imageOverlay(item.rasterUrl,areaBounds,{pane:'tilePane',attribution:WMS_SOURCES[item.provider]?.attributionHtml|| (item.provider==='geoportal'?'GUGiK / Geoportal.gov.pl':'Esri, Maxar, Earthstar Geographics')}).addTo(map);
   }else{
     $('preview-message').textContent=!item?'Zaznacz obszar na mapie':item.state==='empty'?'Brak zdjęcia dla tego obszaru':item.state==='error'?'Nie udało się wczytać zdjęcia':'Przygotowuję podgląd…';
     $('preview-detail').textContent=item?.error||(!item?'Tutaj zobaczysz zdjęcie, które trafi do ZIP.':'Dostępność sprawdzana jest automatycznie.');
@@ -282,8 +288,9 @@ new ResizeObserver(entries=>{
   if(columns!==newColumns||pageSize!==newColumns*rows){columns=newColumns;pageSize=columns*rows;page=0;renderGrid();}
 }).observe($('imagery-list'));
 new ResizeObserver(()=>map.invalidateSize()).observe($('map'));
-async function downloadZip(chosen) {
+async function downloadZip(chosen,purpose='download') {
   if(!chosen.length||exporting)return;exporting=true;syncCounts();$('download').textContent='Tworzenie ZIP…';setStatus('Pakuję '+chosen.length+' gotowych zdjęć…');
+  const exportGeneration=generation;
   try{
     const zip=new JSZip(),used=new Set(),manifest=[];
     for(const item of chosen){
@@ -295,6 +302,7 @@ async function downloadZip(chosen) {
     zip.file('obszar.json',JSON.stringify({images:manifest,omitted:items.filter(item=>item.state!=='ready').map(item=>({source:sourceName(item),date:rowDate(item),state:item.state,reason:item.error}))},null,2));
     zip.file('ZRODLA-I-LICENCJE.txt',Object.values(WMS_SOURCES).map(source=>source.name+'\n'+source.attribution+'\n'+source.license).join('\n\n'));
     const blob=await zip.generateAsync({type:'blob',compression:'STORE'});
+    if(purpose==='animation'){if(exportGeneration===generation){openAnimation(blob);setStatus('Zdjęcia przekazane do kroku 3.');}return;}
     const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='warstwy-czasu_'+new Date().toISOString().slice(0,10)+'.zip';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
     setStatus('Gotowe: '+chosen.length+' zdjęć w ZIP.');
   }catch(error){console.error(error);setStatus('Nie udało się utworzyć ZIP: '+error.message,'error');}
@@ -370,4 +378,63 @@ $('parcel-search-form').addEventListener('submit',async event=>{
 });
 $('locate').addEventListener('click',()=>map.locate({setView:true,maxZoom:16}));
 map.on('locationerror',()=>setStatus('Lokalizacja niedostępna. Wyszukaj adres lub przesuń mapę.','error'));
+
+function setWorkflowStep(step){
+ document.body.dataset.step=String(step);
+ $('map-workspace').hidden=step===3;$('animation-workspace').hidden=step!==3;
+ ['area','analysis','animation'].forEach((name,index)=>{const button=$('step-'+name);button.classList.toggle('active',index+1===step);if(index+1===step)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');});
+ requestAnimationFrame(()=>map.invalidateSize());
+}
+function clearComparison(release=false){
+ for(const entry of comparisonLayers){map.removeLayer(entry.layer);if(release&&!items.includes(entry.item)){URL.revokeObjectURL(entry.item.url);URL.revokeObjectURL(entry.item.rasterUrl);}}
+ comparisonLayers=[];renderComparison();
+}
+function renderComparison(){
+ $('layer-count').textContent=comparisonLayers.length;
+ $('clear-layers').disabled=!comparisonLayers.length;
+ const list=$('layer-stack');list.replaceChildren();
+ if(!comparisonLayers.length){list.innerHTML='<div class="layer-empty">Dodaj co najmniej dwa zdjęcia i porównaj je suwakami przezroczystości.</div>';return;}
+ comparisonLayers.forEach((entry,index)=>{
+  entry.layer.setZIndex(1000-index);entry.layer.setOpacity(entry.visible?entry.opacity:0);
+  const card=document.createElement('div');card.className='stack-card';
+  card.innerHTML='<label class="stack-title"><input type="checkbox" '+(entry.visible?'checked':'')+' aria-label="Widoczność warstwy"><span>'+html(sourceName(entry.item)+' · '+rowDate(entry.item))+'</span></label><div class="stack-controls"><button data-move="-1" '+(index===0?'disabled':'')+' title="Przenieś wyżej">↑ Wyżej</button><button data-move="1" '+(index===comparisonLayers.length-1?'disabled':'')+' title="Przenieś niżej">↓ Niżej</button><button class="remove-layer">Usuń</button></div><label class="opacity-label">Przezroczystość <output>'+Math.round((1-entry.opacity)*100)+'%</output></label><input type="range" min="0" max="100" value="'+Math.round((1-entry.opacity)*100)+'" aria-label="Przezroczystość '+html(sourceName(entry.item)+' '+rowDate(entry.item))+'">';
+  card.querySelector('input[type=checkbox]').addEventListener('change',event=>{entry.visible=event.target.checked;entry.layer.setOpacity(entry.visible?entry.opacity:0);});
+  card.querySelector('input[type=range]').addEventListener('input',event=>{entry.opacity=1-Number(event.target.value)/100;card.querySelector('output').textContent=event.target.value+'%';entry.layer.setOpacity(entry.visible?entry.opacity:0);});
+  card.querySelectorAll('[data-move]').forEach(button=>button.addEventListener('click',()=>{const target=index+Number(button.dataset.move);[comparisonLayers[index],comparisonLayers[target]]=[comparisonLayers[target],comparisonLayers[index]];renderComparison();}));
+  card.querySelector('.remove-layer').addEventListener('click',()=>{map.removeLayer(entry.layer);comparisonLayers.splice(index,1);if(!items.includes(entry.item)){URL.revokeObjectURL(entry.item.url);URL.revokeObjectURL(entry.item.rasterUrl);}renderComparison();showPreview();});
+  list.append(card);
+ });
+}
+$('add-layer').addEventListener('click',()=>{
+ const item=items.find(item=>item.id===activeId);if(item?.state!=='ready'||comparisonLayers.some(entry=>entry.item.id===item.id))return;
+ removePreviewLayer();
+ const opacity=comparisonLayers.length?.5:1;
+ const layer=L.imageOverlay(item.rasterUrl,areaBounds,{pane:'tilePane',opacity,attribution:WMS_SOURCES[item.provider]?.attributionHtml||sourceName(item)}).addTo(map);
+ comparisonLayers.unshift({item,layer,opacity,visible:true});renderComparison();showPreview();
+});
+$('clear-layers').addEventListener('click',()=>{clearComparison(true);showPreview();});
+$('step-area').addEventListener('click',()=>setWorkflowStep(1));
+$('step-analysis').addEventListener('click',()=>setWorkflowStep(2));
+$('continue-analysis').addEventListener('click',()=>setWorkflowStep(2));
+$('back-analysis').addEventListener('click',()=>setWorkflowStep(2));
+$('area-download-all').addEventListener('click',()=>{setWorkflowStep(2);$('download-all').click();});
+async function prepareAnimation(){
+ if(document.body.dataset.step==='3')return;
+ const chosen=items.filter(item=>selected.has(item.id)&&item.state==='ready'&&item.blob);
+ if(!chosen.length)return;
+ await downloadZip(chosen,'animation');
+}
+$('step-animation').addEventListener('click',prepareAnimation);
+$('continue-animation').addEventListener('click',prepareAnimation);
+function openAnimation(blob){
+ pendingAnimation=blob;setWorkflowStep(3);
+ const frame=$('animation-frame');
+ animationReady=false;frame.src='./animacja/?embedded=1&session='+Date.now();
+}
+window.addEventListener('message',event=>{
+ if(event.origin!==location.origin||event.source!==$('animation-frame').contentWindow||event.data?.type!=='warstwy-animation-ready')return;
+ animationReady=true;if(pendingAnimation){event.source.postMessage({type:'warstwy-animation-zip',blob:pendingAnimation},location.origin);pendingAnimation=null;}
+});
+renderComparison();
+
 renderGrid();showPreview();syncCounts();
