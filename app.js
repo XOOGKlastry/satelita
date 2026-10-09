@@ -34,7 +34,7 @@ function disposeItems() {
 }
 function clearSelection() {
   generation++; job?.abort(); job=null; clearComparison(true); disposeItems(); items=[]; selected.clear();
-  pendingAnimation=null;animationReady=false;$('animation-frame').removeAttribute('src');setWorkflowStep(1);
+  setWorkflowStep(1);
   areaBounds=null; frame=null; activeId=null; page=0; previewPinned=false;
   drawn.clearLayers(); removePreviewLayer(); updateArea(); renderGrid(); showPreview(); syncCounts();
   setStatus('Zaznacz obszar, aby sprawdzić zdjęcia.');
@@ -246,9 +246,8 @@ function syncCounts() {
   $('zip-label').textContent=chosen+' zdjęć wybranych';$('download').disabled=exporting||allDownloading||!chosen;
   $('download-all').disabled=exporting||allDownloading||!areaBounds;
   $('source-select').disabled=allDownloading||exporting;
-  $('continue-analysis').disabled=!areaBounds;$('step-analysis').disabled=!areaBounds;
   $('area-download-all').disabled=!areaBounds||allDownloading||exporting;
-  $('step-animation').disabled=!chosen||allDownloading||exporting;$('continue-animation').disabled=!chosen||allDownloading||exporting;
+  $('continue-animation').disabled=!chosen||allDownloading||exporting;
   if(allDownloading)$('download-all').textContent='Sprawdzanie: '+ready+' gotowych · '+loading+' w kolejce…';
 }
 function showPreview() {
@@ -380,6 +379,7 @@ $('locate').addEventListener('click',()=>map.locate({setView:true,maxZoom:16}));
 map.on('locationerror',()=>setStatus('Lokalizacja niedostępna. Wyszukaj adres lub przesuń mapę.','error'));
 
 function setWorkflowStep(step){
+ if(step===3&&!$('animation-frame').getAttribute('src'))$('animation-frame').src='./animacja/?embedded=1';
  document.body.dataset.step=String(step);
  $('map-workspace').hidden=step===3;$('animation-workspace').hidden=step!==3;
  ['area','analysis','animation'].forEach((name,index)=>{const button=$('step-'+name);button.classList.toggle('active',index+1===step);if(index+1===step)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');});
@@ -419,17 +419,18 @@ $('continue-analysis').addEventListener('click',()=>setWorkflowStep(2));
 $('back-analysis').addEventListener('click',()=>setWorkflowStep(2));
 $('area-download-all').addEventListener('click',()=>{setWorkflowStep(2);$('download-all').click();});
 async function prepareAnimation(){
- if(document.body.dataset.step==='3')return;
  const chosen=items.filter(item=>selected.has(item.id)&&item.state==='ready'&&item.blob);
  if(!chosen.length)return;
  await downloadZip(chosen,'animation');
 }
-$('step-animation').addEventListener('click',prepareAnimation);
+$('step-animation').addEventListener('click',()=>setWorkflowStep(3));
 $('continue-animation').addEventListener('click',prepareAnimation);
 function openAnimation(blob){
  pendingAnimation=blob;setWorkflowStep(3);
- const frame=$('animation-frame');
- animationReady=false;frame.src='./animacja/?embedded=1&session='+Date.now();
+ if(animationReady){
+  $('animation-frame').contentWindow.postMessage({type:'warstwy-animation-zip',blob:pendingAnimation},location.origin);
+  pendingAnimation=null;
+ }
 }
 window.addEventListener('message',event=>{
  if(event.origin!==location.origin||event.source!==$('animation-frame').contentWindow||event.data?.type!=='warstwy-animation-ready')return;

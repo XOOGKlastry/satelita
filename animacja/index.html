@@ -60,8 +60,8 @@ body.embedded{--bg:#f3f5f8;--panel:#fff;--line:#dce4ef;--muted:#718197;--text:#2
 
     if(new URLSearchParams(location.search).get('embedded')==='1'){
       document.body.classList.add('embedded');
-      drop.querySelector('h2').textContent='Zdjęcia z analizy';
-      drop.querySelector('p').textContent='Zdjęcia pojawią się tutaj automatycznie. Możesz też wybrać inny ZIP.';
+      drop.querySelector('h2').textContent='Zdjęcia do animacji';
+      drop.querySelector('p').textContent='Wczytaj ZIP lub przekaż wybrane zdjęcia z kroku 2.';
       window.addEventListener('message',event=>{
         if(event.origin!==location.origin||event.source!==parent||event.data?.type!=='warstwy-animation-zip'||!(event.data.blob instanceof Blob))return;
         choose(new File([event.data.blob],'zdjecia-z-analizy.zip',{type:'application/zip'}));

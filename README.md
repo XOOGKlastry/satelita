@@ -52,6 +52,6 @@ Duży przycisk „Pobierz wszystkie możliwe” sprawdza Esri, Geoportal, Geopor
 
 1. Wybierz obszar: osobny panel adresu i działki, rysowanie na mapie, przejście do analizy lub bezpośrednie pobranie wszystkich możliwych zdjęć.
 2. Analizuj i pobierz: mapa pośrodku, po lewej stos warstw i podgląd, po prawej galeria i eksport. Wybierz miniaturę i kliknij „Nałóż wybrane zdjęcie”. Każde zdjęcie ma osobną przezroczystość (0% = pełna widoczność), widoczność, kolejność i usuwanie. Warstwy porównania pozostają po zmianie źródła, lecz są usuwane po zmianie obszaru. Eksport i animacja używają oryginalnych podpisanych zdjęć zaznaczonych w galerii.
-3. Zrób animację: wybrane zdjęcia trafiają automatycznie do generatora w tej samej stronie. Można wrócić do analizy. Pliki GIF i samodzielny HTML pobiera się z generatora. Zmiana obszaru resetuje poprzednią animację.
+3. Zrób animację: otwórz generator niezależnie i wczytaj własny ZIP lub użyj przycisku „Przekaż wybrane zdjęcia do animacji” w kroku 2. Pliki GIF i samodzielny HTML pobiera się z generatora. Każdy krok jest zawsze dostępny w górnej nawigacji. Przechodzenie między krokami i zmiana obszaru zachowują otwarty generator; nowy ZIP zastępuje jego zdjęcia.
 
 Układ komputerowy mieści się w wysokości okna. Długi stos warstw przewija się we własnym panelu; na telefonie panele są ustawione pionowo. Dane do animacji są przekazywane lokalnie pomiędzy stronami tego samego pochodzenia.
